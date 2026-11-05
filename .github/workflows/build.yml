@@ -1,0 +1,62 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Test LRC parser
+        run: node scripts/test-lrc.mjs
+
+      - name: Build browser extension
+        run: node scripts/build-extension.mjs --zip
+
+      - name: Build portable app (zip)
+        shell: pwsh
+        run: |
+          dotnet publish apps/desktop/Nightverse.Desktop.csproj -c Release -r win-x64 --self-contained true -o out/portable
+          Compress-Archive -Path out/portable/* -DestinationPath out/Nightverse-portable-win-x64.zip
+
+      - name: Build MSIX (unsigned, for Store upload)
+        shell: pwsh
+        run: |
+          $v = if ($env:GITHUB_REF -like 'refs/tags/v*') { ($env:GITHUB_REF_NAME.TrimStart('v')) + '.0' } else { '1.0.0.0' }
+          ./packaging/build-msix.ps1 -Version $v -Arch x64 `
+            -IdentityName "${{ vars.STORE_IDENTITY_NAME || 'Nightverse.Dev' }}" `
+            -Publisher "${{ vars.STORE_PUBLISHER || 'CN=NightverseDev' }}" `
+            -PublisherDisplayName "${{ vars.STORE_PUBLISHER_DISPLAY_NAME || 'Jay Maurya' }}"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nightverse-builds
+          path: |
+            out/*.msix
+            out/*.zip
+
+      - name: Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            out/*.msix
+            out/*.zip
+          generate_release_notes: true

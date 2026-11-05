@@ -1,0 +1,26 @@
+{
+  "manifest_version": 3,
+  "name": "Nightverse Lyrics",
+  "short_name": "Nightverse",
+  "version": "1.0.0",
+  "description": "Animated, time-synced lyrics for YT Music: kinetic, constellation, classic and vinyl styles.",
+  "icons": { "16": "icons/16.png", "32": "icons/32.png", "48": "icons/48.png", "128": "icons/128.png" },
+  "action": { "default_title": "Show / hide Nightverse lyrics", "default_icon": { "16": "icons/16.png", "32": "icons/32.png" } },
+  "background": { "service_worker": "background.js" },
+  "content_scripts": [
+    {
+      "matches": ["https://music.youtube.com/*"],
+      "js": ["content.js"],
+      "css": ["content.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    { "resources": ["renderer/*", "renderer/themes/*"], "matches": ["https://music.youtube.com/*"] }
+  ],
+  "permissions": ["storage"],
+  "host_permissions": ["https://lrclib.net/*", "https://lh3.googleusercontent.com/*", "https://i.ytimg.com/*"],
+  "commands": {
+    "toggle-lyrics": { "suggested_key": { "default": "Alt+L" }, "description": "Show / hide lyrics" }
+  }
+}
