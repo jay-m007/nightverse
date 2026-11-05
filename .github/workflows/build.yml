@@ -45,6 +45,23 @@ jobs:
             -Publisher "${{ vars.STORE_PUBLISHER || 'CN=8F753F8D-5097-4DF2-922A-CB81A51BF517' }}" `
             -PublisherDisplayName "${{ vars.STORE_PUBLISHER_DISPLAY_NAME || 'rayques' }}"
 
+      - name: Publish Store package to the store-package branch
+        if: github.event_name != 'pull_request'
+        shell: pwsh
+        run: |
+          $msix = Get-ChildItem out/*.msix | Select-Object -First 1
+          Write-Host "MSIX size: $([math]::Round($msix.Length / 1MB, 1)) MB"
+          New-Item -ItemType Directory -Force -Path pkg | Out-Null
+          Copy-Item $msix.FullName pkg/Nightverse.msix
+          Copy-Item out/nightverse-extension.zip pkg/
+          Set-Location pkg
+          git init -q -b store-package
+          git config user.name "github-actions"
+          git config user.email "github-actions@users.noreply.github.com"
+          git add -A
+          git commit -qm "Store package from $env:GITHUB_SHA"
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" store-package
+
       - uses: actions/upload-artifact@v4
         with:
           name: nightverse-builds
