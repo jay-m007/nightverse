@@ -29,8 +29,8 @@ namespace Nightverse
         private string? _cover;
         private WpfColor _accent = WpfColor.FromRgb(255, 170, 60);
 
-        private static readonly string[] Themes = { "kinetic", "constellation", "classic", "vinyl" };
-        private static readonly string[] ThemeLabels = { "Kinetic", "Constellation", "Classic", "Vinyl" };
+        private static readonly string[] Themes = { "kinetic", "constellation", "classic", "vinyl", "neon", "cyberpunk", "comic", "terminal", "synthwave", "karaoke", "aurora", "rain", "warp", "editorial" };
+        private static readonly string[] ThemeLabels = { "Kinetic", "Constellation", "Classic", "Vinyl", "Neon Sign", "Cyberpunk", "Comic Pop", "Terminal", "Synthwave", "Karaoke", "Aurora", "Rainy Window", "Warp Speed", "Editorial" };
 
         protected override async void OnStartup(StartupEventArgs e)
         {
