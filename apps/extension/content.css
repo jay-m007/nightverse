@@ -1,0 +1,15 @@
+#nightverse-frame {
+  position: fixed; left: 0; top: 0; width: 100vw; height: calc(100vh - 72px);
+  border: 0; z-index: 2147483000; background: #050506;
+  opacity: 0; pointer-events: none; transform: scale(0.985); transition: opacity 0.3s ease, transform 0.3s ease;
+}
+#nightverse-frame.nv-open { opacity: 1; pointer-events: auto; transform: none; }
+#nightverse-frame:fullscreen { height: 100vh; }
+#nightverse-toggle {
+  position: fixed; right: 18px; bottom: 86px; z-index: 2147483001;
+  padding: 8px 14px; border-radius: 18px; border: 1px solid rgb(255 255 255 / 0.14);
+  background: rgb(20 20 22 / 0.8); color: #f6f3ee; backdrop-filter: blur(12px);
+  font: 600 13px/1 Roboto, "Segoe UI", sans-serif; cursor: pointer; letter-spacing: 0.02em;
+}
+#nightverse-toggle:hover { background: rgb(40 40 44 / 0.9); }
+#nightverse-toggle.nv-active { background: #ffb347; color: #111; border-color: transparent; }

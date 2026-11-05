@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Nightverse</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="no-track">
+  <div id="bg" aria-hidden="true"></div>
+  <div id="vignette" aria-hidden="true"></div>
+
+  <div id="clock" aria-hidden="true">
+    <div id="clock-date"></div>
+    <div id="clock-time"></div>
+  </div>
+
+  <main id="stage" class="stage"></main>
+
+  <div id="meta">
+    <div id="meta-title"></div>
+    <div id="meta-artist"></div>
+  </div>
+
+  <nav id="dock" aria-label="Controls">
+    <button data-cmd="previous" title="Previous (←)">⏮</button>
+    <button data-cmd="playPause" title="Play / pause (Space)">⏯</button>
+    <button data-cmd="next" title="Next (→)">⏭</button>
+    <span class="sep"></span>
+    <button data-theme-btn="kinetic" title="Kinetic">Kinetic</button>
+    <button data-theme-btn="constellation" title="Constellation">Stars</button>
+    <button data-theme-btn="classic" title="Classic">Classic</button>
+    <button data-theme-btn="vinyl" title="Vinyl">Vinyl</button>
+    <span class="sep"></span>
+    <button data-cmd="clock" title="Clock (C)">Clock</button>
+    <button data-cmd="toggleGlow" class="host-only" title="Screen glow (G)">Glow</button>
+    <button data-cmd="toggleMini" class="host-only" title="Mini player (M)">Mini</button>
+    <button data-cmd="fullscreen" title="Full screen (F)">⛶</button>
+    <button data-cmd="help" title="Shortcuts (H)">?</button>
+    <button data-cmd="close" class="frame-only" title="Close (Esc)">✕</button>
+  </nav>
+
+  <div id="help" role="dialog" aria-label="Keyboard shortcuts">
+    <h2>Shortcuts</h2>
+    <dl>
+      <dt>T / Shift+T</dt><dd>Next / previous lyric style</dd>
+      <dt>Space</dt><dd>Play / pause</dd>
+      <dt>← / →</dt><dd>Previous / next track</dd>
+      <dt>F</dt><dd>Full screen</dd>
+      <dt>G</dt><dd>Screen-edge glow on/off</dd>
+      <dt>M</dt><dd>Mini vinyl player</dd>
+      <dt>C</dt><dd>Clock on/off</dd>
+      <dt>H</dt><dd>Show / hide this help</dd>
+    </dl>
+    <p class="credit">Lyrics from <a href="https://lrclib.net" target="_blank" rel="noopener">LRCLIB</a></p>
+  </div>
+
+  <div id="toast" role="status"></div>
+
+  <script src="lrc.js"></script>
+  <script src="color.js"></script>
+  <script src="themes/kinetic.js"></script>
+  <script src="themes/constellation.js"></script>
+  <script src="themes/classic.js"></script>
+  <script src="themes/vinyl.js"></script>
+  <script src="demo.js"></script>
+  <script src="engine.js"></script>
+</body>
+</html>

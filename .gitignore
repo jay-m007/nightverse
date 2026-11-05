@@ -1,0 +1,8 @@
+bin/
+obj/
+out/
+.vs/
+*.user
+node_modules/
+# generated copy of packages/renderer (built by scripts/build-extension.mjs)
+apps/extension/renderer/
