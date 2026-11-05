@@ -43,7 +43,7 @@ jobs:
           ./packaging/build-msix.ps1 -Version $v -Arch x64 `
             -IdentityName "${{ vars.STORE_IDENTITY_NAME || 'JayMaurya.Nightverse' }}" `
             -Publisher "${{ vars.STORE_PUBLISHER || 'CN=8F753F8D-5097-4DF2-922A-CB81A51BF517' }}" `
-            -PublisherDisplayName "${{ vars.STORE_PUBLISHER_DISPLAY_NAME || 'rayques' }}"
+            -PublisherDisplayName "${{ vars.STORE_PUBLISHER_DISPLAY_NAME || 'Jay Maurya' }}"
 
       - name: Publish Store package to the store-package branch
         if: github.event_name != 'pull_request'
