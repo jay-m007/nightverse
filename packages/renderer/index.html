@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Nightverse</title>
   <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="themes.css">
 </head>
 <body class="no-track">
   <div id="bg" aria-hidden="true"></div>
@@ -27,10 +28,7 @@
     <button data-cmd="playPause" title="Play / pause (Space)">⏯</button>
     <button data-cmd="next" title="Next (→)">⏭</button>
     <span class="sep"></span>
-    <button data-theme-btn="kinetic" title="Kinetic">Kinetic</button>
-    <button data-theme-btn="constellation" title="Constellation">Stars</button>
-    <button data-theme-btn="classic" title="Classic">Classic</button>
-    <button data-theme-btn="vinyl" title="Vinyl">Vinyl</button>
+    <button data-cmd="styles" title="Lyric styles (S)">Styles ▾</button>
     <span class="sep"></span>
     <button data-cmd="clock" title="Clock (C)">Clock</button>
     <button data-cmd="toggleGlow" class="host-only" title="Screen glow (G)">Glow</button>
@@ -43,6 +41,7 @@
   <div id="help" role="dialog" aria-label="Keyboard shortcuts">
     <h2>Shortcuts</h2>
     <dl>
+      <dt>S</dt><dd>Pick a lyric style</dd>
       <dt>T / Shift+T</dt><dd>Next / previous lyric style</dd>
       <dt>Space</dt><dd>Play / pause</dd>
       <dt>← / →</dt><dd>Previous / next track</dd>
@@ -55,6 +54,8 @@
     <p class="credit">Lyrics from <a href="https://lrclib.net" target="_blank" rel="noopener">LRCLIB</a></p>
   </div>
 
+  <div id="picker" role="dialog" aria-label="Lyric styles"><h2>Lyric style</h2><div class="grid"></div></div>
+
   <div id="toast" role="status"></div>
 
   <script src="lrc.js"></script>
@@ -63,6 +64,8 @@
   <script src="themes/constellation.js"></script>
   <script src="themes/classic.js"></script>
   <script src="themes/vinyl.js"></script>
+  <script src="themes/_line.js"></script>
+  <script src="themes/pack.js"></script>
   <script src="demo.js"></script>
   <script src="engine.js"></script>
 </body>

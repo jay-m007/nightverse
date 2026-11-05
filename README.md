@@ -5,9 +5,13 @@
 Works with Spotify desktop, YT Music, Apple Music and any app that shows up in the Windows media controls. No login, no API keys.</p>
 
 <p align="center"><img src="docs/screenshots/kinetic.png" width="49%"> <img src="docs/screenshots/constellation.png" width="49%"><br>
-<img src="docs/screenshots/classic.png" width="49%"> <img src="docs/screenshots/vinyl.png" width="49%"></p>
+<img src="docs/screenshots/classic.png" width="49%"> <img src="docs/screenshots/vinyl.png" width="49%"><br>
+<img src="docs/screenshots/synthwave.png" width="49%"> <img src="docs/screenshots/comic.png" width="49%"><br>
+<img src="docs/screenshots/cyberpunk.png" width="49%"> <img src="docs/screenshots/editorial.png" width="49%"></p>
 
 ## What you get
+
+14 lyric styles (press `S` to pick one, `T` to cycle):
 
 | | |
 |---|---|
@@ -15,6 +19,16 @@ Works with Spotify desktop, YT Music, Apple Music and any app that shows up in t
 | **Constellation** | Words appear as stars and are joined by lines as they're sung |
 | **Classic** | Cover art + a scrolling lyric sheet with the current line in focus (also shows unsynced lyrics) |
 | **Vinyl** | A spinning record with the cover as its label; the tonearm lifts when you pause |
+| **Neon Sign** | Words light up like glass tubes on a brick wall, in the album's colour |
+| **Cyberpunk** | HUD frame, yellow/cyan type and a glitch on the word being sung |
+| **Comic Pop** | Halftone page, caption box and a starburst behind each word |
+| **Terminal** | Green-phosphor screen; lines type out and scroll up like a log |
+| **Synthwave** | Striped sunset, a moving neon grid and chrome lettering |
+| **Karaoke** | Colour sweeps through each word exactly as it's sung |
+| **Aurora** | Drifting northern lights behind a soft serif |
+| **Rainy Window** | Lo-fi rain running down glass with blurred city lights |
+| **Warp Speed** | Stars stream past and surge on every new line |
+| **Editorial** | A magazine page: black serif on paper, italic accent word |
 | **Screen glow** | A soft, click-through glow around your screen edges, coloured from the album art (Windows app) |
 | **Mini player** | A small always-on-top vinyl player for the corner of your screen (Windows app) |
 
@@ -79,6 +93,7 @@ Then open `chrome://extensions` or `edge://extensions`, turn on **Developer mode
 
 | Key | Action |
 |---|---|
+| `S` | Open the style picker |
 | `T` / `Shift+T` | Next / previous lyric style |
 | `Space`, `←`, `→` | Play/pause, previous, next |
 | `F` | Full screen |

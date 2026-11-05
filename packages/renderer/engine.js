@@ -55,7 +55,25 @@
 
   // ---------- themes ----------
   const themes = window.NVThemes;
-  const order = ['kinetic', 'constellation', 'classic', 'vinyl'];
+  const order = Object.keys(themes).filter((k) => !k.startsWith('__'));
+  const swatches = {
+    kinetic: 'linear-gradient(90deg, #f6f3ee 0 40%, #ff8a3d 40% 75%, #111 75%)',
+    constellation: 'radial-gradient(circle at 30% 40%, #ffcf6e 0 3%, transparent 4%), radial-gradient(circle at 70% 60%, #ffcf6e 0 3%, transparent 4%), linear-gradient(32deg, transparent 49%, #ffcf6e88 50%, transparent 51%), #0b0910',
+    classic: 'linear-gradient(90deg, #5a1446 0 35%, #0b0b0e 35%)',
+    vinyl: 'radial-gradient(circle, #ff7a2f 0 14%, #111 15% 46%, #1b1b1e 47%)',
+  };
+  function buildPicker() {
+    const grid = document.querySelector('#picker .grid');
+    grid.innerHTML = '';
+    for (const k of order) {
+      const b = document.createElement('button');
+      b.dataset.pick = k;
+      b.innerHTML = `<span class="sw"></span>${themes[k].label || k}`;
+      b.querySelector('.sw').style.background = themes[k].swatch || swatches[k] || '#222';
+      b.addEventListener('click', () => { useTheme(k); saveSettings(); document.body.classList.remove('show-picker'); });
+      grid.appendChild(b);
+    }
+  }
   let active = null;
   const stage = $('#stage');
 
@@ -67,6 +85,7 @@
     document.body.dataset.theme = name;
     active = themes[name](stage, api);
     state.settings.theme = name;
+    document.querySelectorAll('#picker [data-pick]').forEach((b) => b.classList.toggle('active', b.dataset.pick === name));
     if (state.track && active.onTrack) active.onTrack(state.track);
     if (active.onLyrics) active.onLyrics();
     toast(themes[name].label || name);
@@ -175,6 +194,7 @@
     else if (k === 'f' || k === 'f11') { e.preventDefault(); send({ type: 'command', name: 'fullscreen' }); }
     else if (k === 'escape') send({ type: 'command', name: 'exitFullscreen' });
     else if (k === 'h' || k === '?') document.body.classList.toggle('show-help');
+    else if (k === 's') document.body.classList.toggle('show-picker');
   });
 
   // Theme dock (hover at the bottom)
@@ -183,6 +203,7 @@
     const c = b.dataset.cmd;
     if (c === 'clock') { state.settings.showClock = !state.settings.showClock; applySettings(); saveSettings(); }
     else if (c === 'help') document.body.classList.toggle('show-help');
+    else if (c === 'styles') document.body.classList.toggle('show-picker');
     else send({ type: 'command', name: c });
   }));
   let idleTimer;
@@ -198,6 +219,7 @@
     requestAnimationFrame(frame);
   }
 
+  buildPicker();
   applySettings();
   requestAnimationFrame(frame);
   send({ type: 'ready' });
