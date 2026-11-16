@@ -71,7 +71,7 @@
   <label>Brightness <input id="bright" type="range" min="10" max="100" value="80"><output></output></label>
   <label>Simulated BPM <input id="bpm" type="range" min="60" max="180" value="116"><output></output></label>
   <button class="tog" id="beatTog">Beat: on</button>
-  <div class="note">In the real app the beat comes from whatever your PC is playing (Spotify, YT Music, anything). Here it is simulated so you can preview the look. A slim glow frame on all four edges; the middle stays clear so lyrics stay sharp.</div>
+  <div class="note">In the real app the beat comes from whatever your PC is playing (Spotify, YT Music, anything). Here it is simulated so you can preview the look. A glow frame on all four edges that fades out; the middle stays clear so lyrics stay sharp.</div>
 </div>
 <button class="tog" id="hide">Hide panel</button>
 
@@ -205,7 +205,7 @@
     const base = Math.min(W, H);
     const react = isStatic ? 0 : isDyn ? Math.min(1, S.react * 1.35 + .25) : S.react;
     const pump = 1 + react * (isDyn ? .7 : .45) * bass;
-    const depth = Math.min(.16 * base, (.03 + S.reach * .09) * base * pump);
+    const depth = Math.min(.22 * base, (.06 + S.reach * .12) * base * pump);
     const alpha = isStatic ? .35 + .45 * S.bright
       : isDyn ? Math.min(.95, (.2 + .5 * S.bright) * (.4 + react * 1.6 * bass))
       : Math.min(.9, (.3 + .4 * S.bright) * (.7 + react * .8 * bass));
@@ -226,7 +226,7 @@
         const [x0, y0, x1, y1] = bd.g(x, y);
         const g = ctx.createLinearGradient(x0, y0, x1, y1);
         const c = `${R | 0},${G | 0},${B | 0}`;
-        g.addColorStop(0, `rgba(${c},1)`); g.addColorStop(.22, `rgba(${c},.55)`); g.addColorStop(.5, `rgba(${c},.18)`); g.addColorStop(1, `rgba(${c},0)`);
+        g.addColorStop(0, `rgba(${c},1)`); g.addColorStop(.2, `rgba(${c},.72)`); g.addColorStop(.5, `rgba(${c},.39)`); g.addColorStop(.8, `rgba(${c},.22)`); g.addColorStop(1, `rgba(${c},0)`);
         ctx.fillStyle = g; ctx.fillRect(x, y, w, h);
       }
     });

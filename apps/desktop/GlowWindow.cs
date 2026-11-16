@@ -77,8 +77,9 @@ namespace Nightverse
                 for (int k = 0; k < BandStops; k++) fill.GradientStops.Add(new GradientStop(Colors.Transparent, k / (double)(BandStops - 1)));
                 var mask = new LinearGradientBrush();
                 mask.GradientStops.Add(new GradientStop(Color.FromArgb(255, 0, 0, 0), 0));
-                mask.GradientStops.Add(new GradientStop(Color.FromArgb(140, 0, 0, 0), 0.22));
-                mask.GradientStops.Add(new GradientStop(Color.FromArgb(45, 0, 0, 0), 0.5));
+                mask.GradientStops.Add(new GradientStop(Color.FromArgb(185, 0, 0, 0), 0.2));
+                mask.GradientStops.Add(new GradientStop(Color.FromArgb(100, 0, 0, 0), 0.5));
+                mask.GradientStops.Add(new GradientStop(Color.FromArgb(55, 0, 0, 0), 0.8));
                 mask.GradientStops.Add(new GradientStop(Color.FromArgb(0, 0, 0, 0), 1));
                 switch (i)
                 {
@@ -206,7 +207,7 @@ namespace Nightverse
             double baseSize = Math.Min(_w, _h);
             double P = 2 * (_w + _h);
             double pump = 1 + react * (isDynamic ? 0.7 : 0.45) * _bass;
-            double depth = Math.Min(0.16 * baseSize, (0.03 + _reach * 0.09) * baseSize * pump);
+            double depth = Math.Min(0.22 * baseSize, (0.06 + _reach * 0.12) * baseSize * pump);
             double alpha = isStatic ? 0.35 + 0.45 * _bright
                 : isDynamic ? Math.Min(0.95, (0.2 + 0.5 * _bright) * (0.4 + react * 1.6 * _bass))
                 : Math.Min(0.9, (0.3 + 0.4 * _bright) * (0.7 + react * 0.8 * _bass));
