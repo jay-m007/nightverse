@@ -24,7 +24,7 @@ namespace Nightverse
             public double U, Drift, Phase, Wobble, Size;
         }
 
-        private const int BlobCount = 10;
+        private const int BlobCount = 32;
         private readonly Canvas _canvas = new();
         private readonly List<Blob> _blobs = new();
         private const int BandStops = 24;
@@ -69,28 +69,26 @@ namespace Nightverse
             _canvas.IsHitTestVisible = false;
             Content = _canvas;
 
-            // A slim glowing frame hugging all four edges. Colour flows around it along the length (Fill),
-            // and an opacity mask fades it to fully transparent towards the centre so lyrics stay crisp.
-            for (int i = 0; i < 4; i++)
+            // Soft fluid light: overlapping blurry blobs sitting right on the screen edge all the way round.
+            // Their size and position wave slowly, so the glow ripples like liquid and fades out softly inwards.
+            for (int i = 0; i < BlobCount; i++)
             {
-                var fill = new LinearGradientBrush();
-                for (int k = 0; k < BandStops; k++) fill.GradientStops.Add(new GradientStop(Colors.Transparent, k / (double)(BandStops - 1)));
-                var mask = new LinearGradientBrush();
-                mask.GradientStops.Add(new GradientStop(Color.FromArgb(255, 0, 0, 0), 0));
-                mask.GradientStops.Add(new GradientStop(Color.FromArgb(185, 0, 0, 0), 0.2));
-                mask.GradientStops.Add(new GradientStop(Color.FromArgb(100, 0, 0, 0), 0.5));
-                mask.GradientStops.Add(new GradientStop(Color.FromArgb(55, 0, 0, 0), 0.8));
-                mask.GradientStops.Add(new GradientStop(Color.FromArgb(0, 0, 0, 0), 1));
-                switch (i)
+                var brush = new RadialGradientBrush { GradientStops = new GradientStopCollection
                 {
-                    case 0: fill.StartPoint = new Point(0, 0); fill.EndPoint = new Point(1, 0); mask.StartPoint = new Point(0, 0); mask.EndPoint = new Point(0, 1); break; // top
-                    case 1: fill.StartPoint = new Point(0, 0); fill.EndPoint = new Point(0, 1); mask.StartPoint = new Point(1, 0); mask.EndPoint = new Point(0, 0); break; // right
-                    case 2: fill.StartPoint = new Point(1, 0); fill.EndPoint = new Point(0, 0); mask.StartPoint = new Point(0, 1); mask.EndPoint = new Point(0, 0); break; // bottom
-                    default: fill.StartPoint = new Point(0, 1); fill.EndPoint = new Point(0, 0); mask.StartPoint = new Point(0, 0); mask.EndPoint = new Point(1, 0); break; // left
-                }
-                _rimBrushes[i] = fill;
-                _rims[i] = new Rectangle { Fill = fill, OpacityMask = mask, IsHitTestVisible = false };
-                _canvas.Children.Add(_rims[i]);
+                    new GradientStop(Colors.Transparent, 0), new GradientStop(Colors.Transparent, 0.35),
+                    new GradientStop(Colors.Transparent, 0.7), new GradientStop(Colors.Transparent, 1),
+                } };
+                var el = new Ellipse { Fill = brush, IsHitTestVisible = false };
+                _canvas.Children.Add(el);
+                _blobs.Add(new Blob
+                {
+                    Shape = el, Brush = brush,
+                    U = i / (double)BlobCount,
+                    Drift = 0.6 + ((i * 37) % 10) / 10.0,
+                    Phase = i * 0.22,
+                    Wobble = i * 1.7,
+                    Size = 0.85 + ((i * 53) % 10) / 30.0,
+                });
             }
 
             IsVisibleChanged += (_, _) => SetRendering(IsVisible);
@@ -205,31 +203,31 @@ namespace Nightverse
             double hueNow = isStatic ? 0 : _hue + _hueStep;
 
             double baseSize = Math.Min(_w, _h);
-            double P = 2 * (_w + _h);
-            double pump = 1 + react * (isDynamic ? 0.7 : 0.45) * _bass;
-            double depth = Math.Min(0.22 * baseSize, (0.06 + _reach * 0.12) * baseSize * pump);
-            double alpha = isStatic ? 0.35 + 0.45 * _bright
-                : isDynamic ? Math.Min(0.95, (0.2 + 0.5 * _bright) * (0.4 + react * 1.6 * _bass))
-                : Math.Min(0.9, (0.3 + 0.4 * _bright) * (0.7 + react * 0.8 * _bass));
+            double reach = (0.10 + _reach * 0.2) * baseSize;
+            double pump = 1 + react * (isDynamic ? 0.9 : 0.55) * _bass;
+            double alpha = isStatic ? 0.2 + 0.36 * _bright
+                : isDynamic ? Math.Min(0.8, (0.2 + 0.34 * _bright) * (0.5 + react * 1.5 * _bass))
+                : Math.Min(0.62, (0.2 + 0.3 * _bright) * (0.75 + react * 0.7 * _bass));
 
-            // perimeter ranges: top, right, bottom, left (matches the gradient directions set up in the constructor)
-            double[] u0 = { 0, _w / P, (_w + _h) / P, (2 * _w + _h) / P };
-            double[] u1 = { _w / P, (_w + _h) / P, (2 * _w + _h) / P, 1 };
-            for (int i = 0; i < 4; i++)
+            for (int i = 0; i < _blobs.Count; i++)
             {
-                var r = _rims[i];
-                r.Opacity = alpha;
-                var gs = _rimBrushes[i].GradientStops;
-                for (int k = 0; k < gs.Count; k++)
-                {
-                    double u = u0[i] + (u1[i] - u0[i]) * (k / (double)(gs.Count - 1));
-                    var c = PaletteAt(hueNow + _flow * 8 + u * 3);
-                    gs[k].Color = Color.FromArgb(255, c.R, c.G, c.B);
-                }
-                if (i == 0) { r.Width = _w; r.Height = depth; Canvas.SetLeft(r, 0); Canvas.SetTop(r, 0); }
-                else if (i == 2) { r.Width = _w; r.Height = depth; Canvas.SetLeft(r, 0); Canvas.SetTop(r, _h - depth); }
-                else if (i == 3) { r.Width = depth; r.Height = _h; Canvas.SetLeft(r, 0); Canvas.SetTop(r, 0); }
-                else { r.Width = depth; r.Height = _h; Canvas.SetLeft(r, _w - depth); Canvas.SetTop(r, 0); }
+                var b = _blobs[i];
+                double u = b.U + (isStatic ? 0 : _flow * 0.5 * b.Drift + Math.Sin(t * 0.3 + b.Wobble) * 0.012);
+                var p = Perimeter(u);
+                // wavy: radius and distance from the edge ripple with slow, out-of-phase sine waves
+                double wave = isStatic ? 1 : 1 + 0.32 * Math.Sin(t * 0.55 + b.Wobble) + 0.12 * Math.Sin(t * 1.3 + b.Wobble * 2.1);
+                double r = reach * b.Size * wave * pump;
+                double inset = r * (0.30 + (isStatic ? 0 : 0.22 * Math.Sin(t * 0.45 + b.Wobble * 1.4)));  // centre sits outside the edge
+                double cx = p.x - p.nx * inset, cy = p.y - p.ny * inset;
+                var c = PaletteAt(b.Phase + (isStatic ? 0 : hueNow + _flow * 2));
+
+                b.Shape.Width = r * 2; b.Shape.Height = r * 2;
+                Canvas.SetLeft(b.Shape, cx - r); Canvas.SetTop(b.Shape, cy - r);
+                var st = b.Brush.GradientStops;
+                st[0].Color = Color.FromArgb((byte)(255 * alpha), c.R, c.G, c.B);
+                st[1].Color = Color.FromArgb((byte)(255 * alpha * 0.55), c.R, c.G, c.B);
+                st[2].Color = Color.FromArgb((byte)(255 * alpha * 0.16), c.R, c.G, c.B);
+                st[3].Color = Color.FromArgb(0, c.R, c.G, c.B);
             }
         }
 

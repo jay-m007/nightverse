@@ -71,7 +71,7 @@
   <label>Brightness <input id="bright" type="range" min="10" max="100" value="80"><output></output></label>
   <label>Simulated BPM <input id="bpm" type="range" min="60" max="180" value="116"><output></output></label>
   <button class="tog" id="beatTog">Beat: on</button>
-  <div class="note">In the real app the beat comes from whatever your PC is playing (Spotify, YT Music, anything). Here it is simulated so you can preview the look. A glow frame on all four edges that fades out; the middle stays clear so lyrics stay sharp.</div>
+  <div class="note">In the real app the beat comes from whatever your PC is playing (Spotify, YT Music, anything). Here it is simulated so you can preview the look. Soft, wavy light on all four edges that fades out before the lyrics; the middle stays clear so lyrics stay sharp.</div>
 </div>
 <button class="tog" id="hide">Hide panel</button>
 
@@ -156,13 +156,13 @@
   // ---- the lighting ----
   // Fluid blobs hug the screen perimeter, drift along it, shift through the palette
   // and swell with the bass. Light bleeds inward from the edges like a backlit wall.
-  const N = 10;
+  const N = 32;
   const blobs = Array.from({ length: N }, (_, i) => ({
     u: i / N,                 // position along the perimeter 0..1
     drift: .6 + ((i * 37) % 10) / 10,   // individual drift factor
-    ph: (i * 0.7) % 7,        // colour phase
+    ph: i * 0.22,        // colour phase
     wob: i * 1.7,
-    size: .8 + ((i * 53) % 10) / 25,
+    size: .85 + ((i * 53) % 10) / 30,
   }));
 
   function palette(p) {          // smooth colour at fractional index p
@@ -204,33 +204,25 @@
     ctx.globalCompositeOperation = 'source-over';
     const base = Math.min(W, H);
     const react = isStatic ? 0 : isDyn ? Math.min(1, S.react * 1.35 + .25) : S.react;
-    const pump = 1 + react * (isDyn ? .7 : .45) * bass;
-    const depth = Math.min(.22 * base, (.06 + S.reach * .12) * base * pump);
-    const alpha = isStatic ? .35 + .45 * S.bright
-      : isDyn ? Math.min(.95, (.2 + .5 * S.bright) * (.4 + react * 1.6 * bass))
-      : Math.min(.9, (.3 + .4 * S.bright) * (.7 + react * .8 * bass));
-    const P = 2 * (W + H), SEG = 64;
-    // four edge bands: colour flows along the length, fades to transparent towards the centre
-    const bands = [
-      { u0: 0, u1: W / P, rect: (k, n) => [Math.round(W * k / n), 0, Math.round(W * (k + 1) / n) - Math.round(W * k / n), depth], g: (x, y) => [x, 0, x, depth] },
-      { u0: W / P, u1: (W + H) / P, rect: (k, n) => [W - depth, Math.round(H * k / n), depth, Math.round(H * (k + 1) / n) - Math.round(H * k / n)], g: (x, y) => [W, y, W - depth, y] },
-      { u0: (W + H) / P, u1: (2 * W + H) / P, rect: (k, n) => [Math.round(W - W * (k + 1) / n), H - depth, Math.round(W - W * k / n) - Math.round(W - W * (k + 1) / n), depth], g: (x, y) => [x, H, x, H - depth] },
-      { u0: (2 * W + H) / P, u1: 1, rect: (k, n) => [0, Math.round(H - H * (k + 1) / n), depth, Math.round(H - H * k / n) - Math.round(H - H * (k + 1) / n)], g: (x, y) => [0, y, depth, y] },
-    ];
-    ctx.globalAlpha = alpha;
-    bands.forEach((bd) => {
-      for (let k = 0; k < SEG; k++) {
-        const u = bd.u0 + (bd.u1 - bd.u0) * (k + .5) / SEG;
-        const [R, G, B] = palette(hueNow + flow * 8 + u * 3);
-        const [x, y, w, h] = bd.rect(k, SEG);
-        const [x0, y0, x1, y1] = bd.g(x, y);
-        const g = ctx.createLinearGradient(x0, y0, x1, y1);
-        const c = `${R | 0},${G | 0},${B | 0}`;
-        g.addColorStop(0, `rgba(${c},1)`); g.addColorStop(.2, `rgba(${c},.72)`); g.addColorStop(.5, `rgba(${c},.39)`); g.addColorStop(.8, `rgba(${c},.22)`); g.addColorStop(1, `rgba(${c},0)`);
-        ctx.fillStyle = g; ctx.fillRect(x, y, w, h);
-      }
+    const reach = (.10 + S.reach * .2) * base;
+    const pump = 1 + react * (isDyn ? .9 : .55) * bass;
+    const alpha = isStatic ? .2 + .36 * S.bright
+      : isDyn ? Math.min(.8, (.2 + .34 * S.bright) * (.5 + react * 1.5 * bass))
+      : Math.min(.62, (.2 + .3 * S.bright) * (.75 + react * .7 * bass));
+    blobs.forEach((b) => {
+      const u = b.u + (isStatic ? 0 : flow * .5 * b.drift + Math.sin(t * .3 + b.wob) * .012);
+      const p = perimeter(u);
+      const wave = isStatic ? 1 : 1 + .32 * Math.sin(t * .55 + b.wob) + .12 * Math.sin(t * 1.3 + b.wob * 2.1);
+      const r = reach * b.size * wave * pump;
+      const inset = r * (.30 + (isStatic ? 0 : .22 * Math.sin(t * .45 + b.wob * 1.4)));
+      const cx = p.x - p.nx * inset, cy = p.y - p.ny * inset;
+      const [R, G, B] = palette(b.ph + (isStatic ? 0 : hueNow + flow * 2));
+      const c = `${R | 0},${G | 0},${B | 0}`;
+      const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
+      g.addColorStop(0, `rgba(${c},${alpha})`); g.addColorStop(.35, `rgba(${c},${alpha * .55})`);
+      g.addColorStop(.7, `rgba(${c},${alpha * .16})`); g.addColorStop(1, `rgba(${c},0)`);
+      ctx.fillStyle = g; ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
     });
-    ctx.globalAlpha = 1;
     requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);
