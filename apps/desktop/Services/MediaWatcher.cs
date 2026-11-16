@@ -130,6 +130,8 @@ namespace Nightverse.Services
         }
 
         /// <summary>Called on events and once a second by the app.</summary>
+        private TimeSpan _lastPos, _anchorPos; private DateTimeOffset _lastUpd, _anchorAt; private bool _wasPlaying;
+
         public void PushPosition()
         {
             var session = _session;
@@ -140,12 +142,23 @@ namespace Nightverse.Services
                 var tl = session.GetTimelineProperties();
                 bool playing = info?.PlaybackStatus == GlobalSystemMediaTransportControlsSessionPlaybackStatus.Playing;
                 var pos = tl.Position;
-                if (playing && tl.LastUpdatedTime.Year > 2000)
+                var now = DateTimeOffset.Now;
+                // Re-anchor only when the player really reported something new (or playback just resumed);
+                // otherwise advance with our own clock. Extrapolating from a stale LastUpdatedTime
+                // made the lyrics jump ahead after pause/resume or seek.
+                bool changed = pos != _lastPos || tl.LastUpdatedTime != _lastUpd || playing != _wasPlaying;
+                if (changed)
                 {
-                    // SMTC gives the position at LastUpdatedTime; extrapolate to now.
-                    var elapsed = DateTimeOffset.Now - tl.LastUpdatedTime;
-                    if (elapsed > TimeSpan.Zero && elapsed < TimeSpan.FromHours(1)) pos += elapsed;
+                    var anchor = pos;
+                    if (playing && playing == _wasPlaying && tl.LastUpdatedTime.Year > 2000)
+                    {
+                        var el = now - tl.LastUpdatedTime;
+                        if (el > TimeSpan.Zero && el < TimeSpan.FromSeconds(3)) anchor += el;
+                    }
+                    _anchorPos = anchor; _anchorAt = now;
+                    _lastPos = pos; _lastUpd = tl.LastUpdatedTime; _wasPlaying = playing;
                 }
+                pos = playing ? _anchorPos + (now - _anchorAt) : _anchorPos;
                 var end = tl.EndTime - tl.StartTime;
                 if (end > TimeSpan.Zero && pos > end) pos = end;
                 if (pos < TimeSpan.Zero) pos = TimeSpan.Zero;

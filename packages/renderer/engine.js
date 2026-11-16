@@ -38,7 +38,7 @@
   // ---------- clock ----------
   function now() {
     const c = state.clock;
-    return c.base + (c.playing ? (performance.now() - c.at) * c.rate : 0);
+    return c.base + (c.playing ? (performance.now() - c.at) * c.rate : 0) + (state.settings.offsetMs || 0);
   }
   function setPosition(ms, playing) {
     const current = now();
@@ -206,6 +206,10 @@
     else if (k === 'arrowleft') send({ type: 'command', name: 'previous' });
     else if (k === 'g') send({ type: 'command', name: 'toggleGlow' });
     else if (k === 'm') send({ type: 'command', name: 'toggleMini' });
+    else if (k === ']' || k === '[') {
+      state.settings.offsetMs = Math.max(-5000, Math.min(5000, (state.settings.offsetMs || 0) + (k === ']' ? 100 : -100)));
+      saveSettings(); toast('Lyrics timing ' + (state.settings.offsetMs > 0 ? '+' : '') + state.settings.offsetMs + ' ms (] earlier lyrics, [ later)');
+    }
     else if (k === 'f' || k === 'f11') { e.preventDefault(); send({ type: 'command', name: 'fullscreen' }); }
     else if (k === 'escape') send({ type: 'command', name: 'exitFullscreen' });
     else if (k === 'h' || k === '?') document.body.classList.toggle('show-help');
