@@ -27,6 +27,9 @@ jobs:
       - name: Test LRC parser
         run: node scripts/test-lrc.mjs
 
+      - name: Test beat detector
+        run: dotnet run -c Release --project tests/dsp/BeatDetector.Tests.csproj
+
       - name: Build browser extension
         run: node scripts/build-extension.mjs --zip
 

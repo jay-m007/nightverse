@@ -285,13 +285,15 @@ namespace Nightverse
                     if (isDynamic) _hueStep += 0.5;           // dynamic: the colour jumps to the next shade on every beat
                     if (isTunnel) _ringPhase += 1.0 / RingCount;   // tunnel: a new ring is born on the beat
                 }
-                target = Math.Max(_audio.Bass * (isDynamic ? 0.8 : 0.55), _kick);
+                target = Math.Max(_audio.Bass * (isDynamic ? 0.85 : 0.6), _kick);
             }
             else
             {
                 target = 0.18 + 0.12 * Math.Sin(t * 1.1);     // no audio: a calm breathing so it still feels alive
             }
-            _kick = Math.Max(0, _kick - dt * (isDynamic ? 5.5 : 4.2));
+            // the flash dies away in time with the song: a slow track breathes, a fast one snaps
+            double period = _audio is { Bpm: > 0 } ? 60.0 / _audio.Bpm : 0.5;
+            _kick = Math.Max(0, _kick - dt * (isDynamic ? 1.05 : 0.8) / Math.Clamp(period * 0.42, 0.1, 0.5));
             _bass += (target - _bass) * Math.Min(1, dt * (target > _bass ? 30 : (isDynamic ? 11 : 7)));
 
             if (!isStatic)
