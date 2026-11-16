@@ -59,8 +59,8 @@ namespace Nightverse.Services
                 if (File.Exists(file))
                 {
                     var cached = JsonSerializer.Deserialize<LyricsResult>(await File.ReadAllTextAsync(file, ct));
-                    // keep hits forever, retry misses after a day (someone may have added them)
-                    if (cached != null && (!cached.NotFound || DateTime.UtcNow - cached.CachedAt < TimeSpan.FromDays(1)))
+                    // keep hits forever, retry misses after 30 minutes (someone may have added them)
+                    if (cached != null && (!cached.NotFound || DateTime.UtcNow - cached.CachedAt < TimeSpan.FromMinutes(30)))
                         return _memory[key] = cached;
                 }
             }
@@ -88,19 +88,23 @@ namespace Nightverse.Services
                 if (Good(exact)) return exact;
             }
 
-            // 2) search, prefer synced lyrics with a close duration
-            foreach (var q in new[] { $"api/search?track_name={E(title)}&artist_name={E(mainArtist)}", $"api/search?q={E(title + " " + mainArtist)}" })
+            // 2) search several ways (exact artist, free text, title only) and pick the best candidate
+            var all = new System.Collections.Generic.List<LyricsResult>();
+            foreach (var q in new[] {
+                $"api/search?track_name={E(title)}&artist_name={E(mainArtist)}",
+                $"api/search?q={E(title + " " + mainArtist)}",
+                $"api/search?q={E(title + " " + artist)}",
+                $"api/search?track_name={E(title)}" })
             {
                 var list = await GetJsonAsync<LyricsResult[]>(q, ct);
-                if (list == null || list.Length == 0) continue;
-                var pick = list
-                    .Where(r => r.Instrumental || !string.IsNullOrWhiteSpace(r.Synced) || !string.IsNullOrWhiteSpace(r.Plain))
-                    .OrderByDescending(r => !string.IsNullOrWhiteSpace(r.Synced))
-                    .ThenBy(r => secs > 0 ? Math.Abs(r.Duration - secs) : 0)
-                    .FirstOrDefault(r => secs <= 0 || Math.Abs(r.Duration - secs) <= 8);
-                if (pick != null) return pick;
+                if (list != null) all.AddRange(list.Where(Good));
+                // stop early once there is a synced hit that matches the length closely
+                if (all.Any(r => !string.IsNullOrWhiteSpace(r.Synced) && (secs <= 0 || Math.Abs(r.Duration - secs) <= 5))) break;
             }
-            return null;
+            double D(LyricsResult r) => secs > 0 ? Math.Abs(r.Duration - secs) : 0;
+            return all.Where(r => !string.IsNullOrWhiteSpace(r.Synced) && D(r) <= 10).OrderBy(D).FirstOrDefault()
+                ?? all.Where(r => !string.IsNullOrWhiteSpace(r.Synced) && D(r) <= 30).OrderBy(D).FirstOrDefault()
+                ?? all.Where(r => D(r) <= 10).OrderBy(D).FirstOrDefault();
         }
 
         private static bool Good(LyricsResult? r) => r != null && (r.Instrumental || !string.IsNullOrWhiteSpace(r.Synced) || !string.IsNullOrWhiteSpace(r.Plain));

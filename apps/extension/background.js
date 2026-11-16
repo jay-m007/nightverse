@@ -24,7 +24,7 @@ async function findLyrics({ title, artist, album, durationMs }) {
   const key = `${artist}|${title}`.toLowerCase();
   if (cache.has(key)) return cache.get(key);
   const stored = await chrome.storage.local.get(key);
-  if (stored[key] && (!stored[key].notFound || Date.now() - stored[key].at < 864e5)) return stored[key];
+  if (stored[key] && (!stored[key].notFound || Date.now() - stored[key].at < 18e5)) return stored[key];
 
   const t = cleanTitle(title);
   const main = artist.split(/\s*(?:,|&| x | feat\.?| ft\.?| and )\s*/i)[0];
@@ -35,14 +35,17 @@ async function findLyrics({ title, artist, album, durationMs }) {
     const r = await getJson(`/api/get?track_name=${e(t)}&artist_name=${e(artist)}&album_name=${e(album || '')}&duration=${secs}`);
     if (good(r)) hit = r;
   }
-  for (const q of [`/api/search?track_name=${e(t)}&artist_name=${e(main)}`, `/api/search?q=${e(t + ' ' + main)}`]) {
+  const all = [];
+  for (const q of [`/api/search?track_name=${e(t)}&artist_name=${e(main)}`, `/api/search?q=${e(t + ' ' + main)}`, `/api/search?q=${e(t + ' ' + artist)}`, `/api/search?track_name=${e(t)}`]) {
     if (hit) break;
     const list = await getJson(q);
-    if (!Array.isArray(list)) continue;
-    hit = list
-      .filter(good)
-      .filter((r) => !secs || Math.abs(r.duration - secs) <= 8)
-      .sort((a, b) => (!!b.syncedLyrics - !!a.syncedLyrics) || (secs ? Math.abs(a.duration - secs) - Math.abs(b.duration - secs) : 0))[0] || null;
+    if (Array.isArray(list)) all.push(...list.filter(good));
+    if (all.some((r) => r.syncedLyrics && (!secs || Math.abs(r.duration - secs) <= 5))) break;
+  }
+  if (!hit) {
+    const d = (r) => (secs ? Math.abs(r.duration - secs) : 0);
+    const by = (f) => all.filter(f).sort((a, b) => d(a) - d(b))[0] || null;
+    hit = by((r) => r.syncedLyrics && d(r) <= 10) || by((r) => r.syncedLyrics && d(r) <= 30) || by((r) => d(r) <= 10);
   }
   const result = hit
     ? { synced: hit.syncedLyrics || null, plain: hit.plainLyrics || null, instrumental: !!hit.instrumental, at: Date.now() }
