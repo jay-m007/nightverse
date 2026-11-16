@@ -50,7 +50,12 @@ namespace Nightverse.Services
             try
             {
                 if (File.Exists(FilePath))
-                    return JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(FilePath)) ?? new AppSettings();
+                {
+                    var loaded = JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(FilePath)) ?? new AppSettings();
+                    loaded.Lighting ??= new LightingSettings();
+                    if (loaded.Lighting.Colors == null || loaded.Lighting.Colors.Count == 0) loaded.Lighting.Colors = new() { "#ff2a55", "#35ff8a", "#2d7bff" };
+                    return loaded;
+                }
             }
             catch { /* corrupt file: start fresh */ }
             return new AppSettings();

@@ -56,6 +56,11 @@ namespace Nightverse.Services
 
         private void OnData(object? sender, WaveInEventArgs e)
         {
+            try { Analyse(e); } catch { /* never let an audio hiccup crash the app */ }
+        }
+
+        private void Analyse(WaveInEventArgs e)
+        {
             var cap = _cap;
             if (cap == null || e.BytesRecorded <= 0) return;
             var fmt = cap.WaveFormat;

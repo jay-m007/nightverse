@@ -30,9 +30,7 @@ namespace Nightverse
         {
             public Rectangle Shape = null!, Halo = null!;
             public LinearGradientBrush Brush = null!, HaloBrush = null!;
-            public int Edge;              // 0 top, 1 right, 2 bottom, 3 left
-            public double Pos;            // 0..1 along that edge
-            public double Seed, Len, Phase;
+            public double Seed, Phase;
         }
 
         private sealed class Ring
@@ -41,7 +39,7 @@ namespace Nightverse
             public SolidColorBrush[] Brushes = null!;
         }
 
-        private const int BlobCount = 56;
+        private const int BlobCount = 40;
         private const int BarCount = 72;
         private const int RingCount = 6;
 
@@ -153,7 +151,7 @@ namespace Nightverse
             _grad = Math.Clamp(s.Gradient, 0, 1);
             _bright = Math.Clamp(s.Brightness, 0.05, 1);
             var pal = new List<Color>();
-            foreach (var hex in s.Colors)
+            foreach (var hex in s.Colors ?? new List<string>())
                 if (TryHex(hex, out var c)) pal.Add(c);
             if (pal.Count == 0) pal.Add(Color.FromRgb(255, 170, 60));
             _palette = pal;
@@ -244,7 +242,25 @@ namespace Nightverse
             return Math.Min(1.4, core + 0.6 * tail);
         }
 
+        private DateTime _lastFrame = DateTime.MinValue;
+        private int _failures;
+
+        // Called by WPF on every composition frame. Limited to ~30 fps (the light is slow, and a transparent
+        // window is drawn in software) and guarded so a drawing error can never take the whole app down.
         private void OnRender(object? sender, EventArgs e)
+        {
+            var nowTick = DateTime.UtcNow;
+            if ((nowTick - _lastFrame).TotalMilliseconds < 30) return;
+            _lastFrame = nowTick;
+            try { RenderFrame(); _failures = 0; }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine("Glow render error: " + ex.Message);
+                if (++_failures >= 5) SetRendering(false);       // give up quietly instead of crashing
+            }
+        }
+
+        private void RenderFrame()
         {
             var now = DateTime.UtcNow;
             double dt = Math.Min(0.05, (now - _last).TotalSeconds); _last = now;
