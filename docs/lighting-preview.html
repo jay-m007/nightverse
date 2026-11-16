@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nightverse Ambient Lighting</title>
+<style>
+  :root { color-scheme: dark; --ink: #f2efe9; --dim: rgb(242 239 233 / .55); }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: #050507; color: var(--ink); font-family: "Segoe UI", system-ui, sans-serif; overflow: hidden; }
+  canvas#glow { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 2; pointer-events: none; }
+  /* a fake desktop so the ambient light has something to light up */
+  .desk { position: fixed; inset: 0; background: radial-gradient(ellipse at 50% 40%, #15151b, #08080b 70%); }
+  .win { position: absolute; left: 18%; top: 14%; width: 64%; height: 62%; border-radius: 12px; background: #17171d; border: 1px solid #2a2a33; box-shadow: 0 30px 80px rgb(0 0 0 / .6); overflow: hidden; }
+  .win .bar { height: 34px; background: #1d1d25; display: flex; align-items: center; gap: 7px; padding: 0 12px; }
+  .win .bar i { width: 10px; height: 10px; border-radius: 50%; background: #3a3a45; display: block; }
+  .win .body { padding: 28px 34px; display: grid; gap: 12px; }
+  .win .body b { display: block; height: 12px; border-radius: 6px; background: #262630; }
+  .win .lyric { font-size: clamp(22px, 3.4vw, 54px); font-weight: 800; letter-spacing: -.03em; margin: 10px 0 4px; }
+  .task { position: absolute; left: 0; right: 0; bottom: 0; height: 44px; background: #101015; border-top: 1px solid #23232b; display: flex; gap: 10px; align-items: center; justify-content: center; }
+  .task i { width: 26px; height: 26px; border-radius: 7px; background: #262630; display: block; }
+  #panel { position: fixed; right: 16px; bottom: 60px; z-index: 5; width: 300px; max-height: calc(100vh - 80px); overflow: auto; padding: 14px 16px 16px; border-radius: 16px; background: rgb(18 18 22 / .86); backdrop-filter: blur(18px); border: 1px solid rgb(255 255 255 / .1); font-size: 13px; }
+  #panel h2 { margin: 0 0 10px; font-size: 14px; letter-spacing: .02em; }
+  #panel label { display: grid; grid-template-columns: 96px 1fr 34px; align-items: center; gap: 8px; margin: 9px 0; color: var(--dim); }
+  #panel label output { text-align: right; color: var(--ink); font-variant-numeric: tabular-nums; }
+  input[type=range] { width: 100%; accent-color: #ff8a3d; }
+  .swatches { display: flex; flex-wrap: wrap; gap: 8px; margin: 6px 0 12px; }
+  .sw { position: relative; width: 34px; height: 34px; border-radius: 50%; border: 2px solid rgb(255 255 255 / .25); overflow: hidden; }
+  .sw input { position: absolute; inset: -8px; width: 52px; height: 52px; border: 0; padding: 0; background: none; cursor: pointer; }
+  .sw button { position: absolute; top: -1px; right: -1px; width: 15px; height: 15px; border-radius: 50%; border: 0; background: #000b; color: #fff; font-size: 10px; line-height: 15px; padding: 0; cursor: pointer; display: none; }
+  .sw:hover button { display: block; }
+  .add { width: 34px; height: 34px; border-radius: 50%; border: 2px dashed rgb(255 255 255 / .3); background: none; color: var(--ink); font-size: 18px; cursor: pointer; }
+  .presets { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+  .presets button, .tog { border: 1px solid rgb(255 255 255 / .14); background: rgb(255 255 255 / .06); color: var(--ink); border-radius: 9px; padding: 6px 10px; font-size: 12px; cursor: pointer; }
+  .presets button:hover, .tog:hover { background: rgb(255 255 255 / .14); }
+  .note { margin-top: 10px; color: var(--dim); font-size: 11.5px; line-height: 1.45; }
+  #hide { position: fixed; right: 16px; bottom: 16px; z-index: 6; }
+  body.nopanel #panel { display: none; }
+</style>
+</head>
+<body>
+<div class="desk">
+  <div class="win">
+    <div class="bar"><i></i><i></i><i></i></div>
+    <div class="body">
+      <div class="lyric">We can be the static on</div>
+      <b style="width:72%"></b><b style="width:55%"></b><b style="width:64%"></b><b style="width:38%"></b>
+    </div>
+  </div>
+  <div class="task"><i></i><i></i><i></i><i></i><i></i></div>
+</div>
+<canvas id="glow"></canvas>
+
+<div id="panel">
+  <h2>Ambient lighting</h2>
+  <div class="presets" id="presets"></div>
+  <div style="color:var(--dim);margin-bottom:4px">Colours (as many as you like)</div>
+  <div class="swatches" id="sw"></div>
+  <label>Beat reaction <input id="react" type="range" min="0" max="100" value="70"><output></output></label>
+  <label>Flow speed <input id="speed" type="range" min="0" max="100" value="35"><output></output></label>
+  <label>Reach <input id="reach" type="range" min="10" max="100" value="45"><output></output></label>
+  <label>Brightness <input id="bright" type="range" min="10" max="100" value="80"><output></output></label>
+  <label>Simulated BPM <input id="bpm" type="range" min="60" max="180" value="116"><output></output></label>
+  <button class="tog" id="beatTog">Beat: on</button>
+  <div class="note">In the real app the beat comes from whatever your PC is playing (Spotify, YT Music, anything). Here it is simulated so you can preview the look. The soft light sits around your screen edges and never blocks clicks.</div>
+</div>
+<button class="tog" id="hide">Hide panel</button>
+
+<script>
+(() => {
+  const cv = document.getElementById('glow');
+  const ctx = cv.getContext('2d');
+  let W = 0, H = 0, dpr = 1;
+  function resize() {
+    dpr = Math.min(2, window.devicePixelRatio || 1);
+    W = innerWidth; H = innerHeight;
+    cv.width = W * dpr; cv.height = H * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  addEventListener('resize', resize); resize();
+
+  const PRESETS = {
+    'RGB': ['#ff2a55', '#35ff8a', '#2d7bff'],
+    'Neon': ['#ff2bd6', '#26e6ff', '#9b5cff'],
+    'Sunset': ['#ff7a2f', '#ff3d6e', '#ffc65a'],
+    'Aurora': ['#3dffb0', '#38b6ff', '#9a6bff'],
+    'Ice': ['#9be8ff', '#5aa8ff', '#e9f7ff'],
+  };
+  let colors = PRESETS['RGB'].slice();
+  const S = { react: .7, speed: .35, reach: .45, bright: .8, bpm: 116, beat: true };
+
+  // ---- UI ----
+  const sw = document.getElementById('sw');
+  function hexToRgb(h) { const n = parseInt(h.slice(1), 16); return [n >> 16 & 255, n >> 8 & 255, n & 255]; }
+  function drawSwatches() {
+    sw.innerHTML = '';
+    colors.forEach((c, i) => {
+      const d = document.createElement('div'); d.className = 'sw'; d.style.background = c;
+      const inp = document.createElement('input'); inp.type = 'color'; inp.value = c;
+      inp.addEventListener('input', () => { colors[i] = inp.value; d.style.background = inp.value; });
+      d.appendChild(inp);
+      if (colors.length > 1) {
+        const x = document.createElement('button'); x.textContent = '×';
+        x.addEventListener('click', (e) => { e.preventDefault(); colors.splice(i, 1); drawSwatches(); });
+        d.appendChild(x);
+      }
+      sw.appendChild(d);
+    });
+    const add = document.createElement('button'); add.className = 'add'; add.textContent = '+';
+    add.addEventListener('click', () => { colors.push('#' + Math.floor(Math.random() * 0xffffff).toString(16).padStart(6, '0')); drawSwatches(); });
+    if (colors.length < 12) sw.appendChild(add);
+  }
+  drawSwatches();
+  const pre = document.getElementById('presets');
+  Object.keys(PRESETS).forEach((k) => {
+    const b = document.createElement('button'); b.textContent = k;
+    b.addEventListener('click', () => { colors = PRESETS[k].slice(); drawSwatches(); });
+    pre.appendChild(b);
+  });
+  function bind(id, key, scale = 100, fmt = (v) => Math.round(v * 100)) {
+    const el = document.getElementById(id), out = el.parentElement.querySelector('output');
+    const upd = () => { S[key] = el.value / scale; out.textContent = fmt(S[key]); };
+    el.addEventListener('input', upd); upd();
+  }
+  bind('react', 'react'); bind('speed', 'speed'); bind('reach', 'reach'); bind('bright', 'bright');
+  bind('bpm', 'bpm', 1, (v) => Math.round(v));
+  const beatTog = document.getElementById('beatTog');
+  beatTog.onclick = () => { S.beat = !S.beat; beatTog.textContent = 'Beat: ' + (S.beat ? 'on' : 'off'); };
+  document.getElementById('hide').onclick = (e) => { document.body.classList.toggle('nopanel'); e.target.textContent = document.body.classList.contains('nopanel') ? 'Show panel' : 'Hide panel'; };
+
+  // ---- the lighting ----
+  // Fluid blobs hug the screen perimeter, drift along it, shift through the palette
+  // and swell with the bass. Light bleeds inward from the edges like a backlit wall.
+  const N = 10;
+  const blobs = Array.from({ length: N }, (_, i) => ({
+    u: i / N,                 // position along the perimeter 0..1
+    drift: .6 + ((i * 37) % 10) / 10,   // individual drift factor
+    ph: (i * 0.7) % 7,        // colour phase
+    wob: i * 1.7,
+    size: .8 + ((i * 53) % 10) / 25,
+  }));
+
+  function palette(p) {          // smooth colour at fractional index p
+    const n = colors.length;
+    const a = ((Math.floor(p) % n) + n) % n, b = (a + 1) % n, f = p - Math.floor(p);
+    const A = hexToRgb(colors[a]), B = hexToRgb(colors[b]);
+    const e = f * f * (3 - 2 * f);
+    return [A[0] + (B[0] - A[0]) * e, A[1] + (B[1] - A[1]) * e, A[2] + (B[2] - A[2]) * e];
+  }
+  function perimeter(u) {        // point on the screen edge, with inward normal
+    u = ((u % 1) + 1) % 1;
+    const P = 2 * (W + H), d = u * P;
+    if (d < W) return { x: d, y: 0, nx: 0, ny: 1 };
+    if (d < W + H) return { x: W, y: d - W, nx: -1, ny: 0 };
+    if (d < 2 * W + H) return { x: W - (d - W - H), y: H, nx: 0, ny: -1 };
+    return { x: 0, y: H - (d - 2 * W - H), nx: 1, ny: 0 };
+  }
+
+  let level = 0, bass = 0, hit = 0, lastBeat = -1, kick = 0;
+  let t0 = performance.now(), prev = t0, flow = 0, hue = 0;
+  function simBeat(t) {
+    const beatsPerSec = S.bpm / 60;
+    const x = t * beatsPerSec, idx = Math.floor(x), frac = x - idx;
+    if (idx !== lastBeat) { lastBeat = idx; if (S.beat) { kick = (idx % 4 === 0) ? 1 : .72; hit = 1; } }
+    return Math.exp(-frac * 5.5) * kick;
+  }
+
+  function frame(now) {
+    const dt = Math.min(.05, (now - prev) / 1000); prev = now;
+    const t = (now - t0) / 1000;
+    const env = S.beat ? simBeat(t) : 0;
+    bass += (env - bass) * Math.min(1, dt * 26);              // fast attack
+    if (env < bass) bass += (env - bass) * Math.min(1, dt * 6);  // slower release
+    flow += dt * (.012 + S.speed * .09);
+    hue += dt * (.05 + S.speed * .55);
+
+    ctx.clearRect(0, 0, W, H);
+    ctx.globalCompositeOperation = 'lighter';
+    const base = Math.min(W, H);
+    const reach = (.16 + S.reach * .42) * base;
+    const react = S.react;
+
+    blobs.forEach((b, i) => {
+      const u = b.u + flow * b.drift + Math.sin(t * .35 + b.wob) * .018;
+      const p = perimeter(u);
+      const breathe = 1 + .16 * Math.sin(t * .6 + b.wob * 1.3);
+      const pump = 1 + react * .75 * bass;
+      const r = reach * b.size * breathe * pump;
+      const inset = -r * .18 + r * .1 * react * bass;    // centre just outside the edge, pushes in on beats
+      const cx = p.x + p.nx * (-inset), cy = p.y + p.ny * (-inset);
+      const [R, G, B] = palette(b.ph + hue + i * .3);
+      const a = Math.min(1, (.22 + .5 * S.bright) * (.62 + react * .9 * bass));
+      const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
+      g.addColorStop(0, `rgba(${R | 0},${G | 0},${B | 0},${a})`);
+      g.addColorStop(.38, `rgba(${R | 0},${G | 0},${B | 0},${a * .5})`);
+      g.addColorStop(.72, `rgba(${R | 0},${G | 0},${B | 0},${a * .14})`);
+      g.addColorStop(1, `rgba(${R | 0},${G | 0},${B | 0},0)`);
+      ctx.fillStyle = g;
+      ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
+    });
+
+    // thin bright rim on beats so the screen frame "flashes"
+    if (react > 0 && bass > .05) {
+      const rim = Math.min(1, bass * react) * .5 * S.bright;
+      const [R, G, B] = palette(hue);
+      const th = 3 + 22 * bass;
+      ctx.globalCompositeOperation = 'lighter';
+      const edge = (x, y, w, h, ox, oy, ix, iy) => {
+        const g = ctx.createLinearGradient(ox, oy, ix, iy);
+        g.addColorStop(0, `rgba(${R | 0},${G | 0},${B | 0},${rim})`);
+        g.addColorStop(1, `rgba(${R | 0},${G | 0},${B | 0},0)`);
+        ctx.fillStyle = g; ctx.fillRect(x, y, w, h);
+      };
+      edge(0, 0, W, th, 0, 0, 0, th);
+      edge(0, H - th, W, th, 0, H, 0, H - th);
+      edge(0, 0, th, H, 0, 0, th, 0);
+      edge(W - th, 0, th, H, W, 0, W - th, 0);
+    }
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+  window.__nv = { S, setColors: (c) => { colors = c.slice(); drawSwatches(); } };
+})();
+</script>
+</body>
+</html>
