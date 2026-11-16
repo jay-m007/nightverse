@@ -77,7 +77,8 @@
   let active = null;
   const stage = $('#stage');
 
-  function useTheme(name) {
+  function useTheme(name, auto) {
+    if (!auto && state.autoFrom) state.autoFrom = null;
     if (!themes[name]) name = 'kinetic';
     if (active && active.destroy) active.destroy();
     stage.innerHTML = '';
@@ -117,6 +118,14 @@
         state.lines = window.NVLrc.parseLrc(msg.synced || '');
         state.plain = msg.plain || null;
         state.status = msg.instrumental ? 'instrumental' : state.lines.length ? 'found' : state.plain ? 'plain' : (msg.status || 'notfound');
+        // Only Classic can show lyrics without timestamps: switch to it for this song, then go back.
+        if (state.status === 'plain' && themes.classic && document.body.dataset.theme !== 'classic' && !state.autoFrom) {
+          const from = document.body.dataset.theme;
+          useTheme('classic', true); state.autoFrom = from;
+        } else if (state.status !== 'plain' && state.autoFrom) {
+          const back = state.autoFrom; state.autoFrom = null;
+          useTheme(back, true);
+        }
         if (active && active.onLyrics) active.onLyrics();
         break;
       }
