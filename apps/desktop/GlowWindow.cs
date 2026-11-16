@@ -27,6 +27,7 @@ namespace Nightverse
         private const int BlobCount = 10;
         private readonly Canvas _canvas = new();
         private readonly List<Blob> _blobs = new();
+        private const int BandStops = 24;
         private readonly Rectangle[] _rims = new Rectangle[4];
         private readonly LinearGradientBrush[] _rimBrushes = new LinearGradientBrush[4];
         private AudioAnalyzer? _audio;
@@ -68,37 +69,28 @@ namespace Nightverse
             _canvas.IsHitTestVisible = false;
             Content = _canvas;
 
-            for (int i = 0; i < BlobCount; i++)
-            {
-                var brush = new RadialGradientBrush { GradientStops = new GradientStopCollection
-                {
-                    new GradientStop(Colors.Transparent, 0), new GradientStop(Colors.Transparent, 0.38),
-                    new GradientStop(Colors.Transparent, 0.72), new GradientStop(Colors.Transparent, 1),
-                } };
-                var el = new Ellipse { Fill = brush, IsHitTestVisible = false };
-                _canvas.Children.Add(el);
-                _blobs.Add(new Blob
-                {
-                    Shape = el, Brush = brush,
-                    U = i / (double)BlobCount,
-                    Drift = 0.6 + ((i * 37) % 10) / 10.0,
-                    Phase = (i * 0.7) % 7,
-                    Wobble = i * 1.7,
-                    Size = 0.8 + ((i * 53) % 10) / 25.0,
-                });
-            }
+            // A slim glowing frame hugging all four edges. Colour flows around it along the length (Fill),
+            // and an opacity mask fades it to fully transparent towards the centre so lyrics stay crisp.
             for (int i = 0; i < 4; i++)
             {
-                var lg = new LinearGradientBrush { GradientStops = new GradientStopCollection { new GradientStop(Colors.Transparent, 0), new GradientStop(Colors.Transparent, 1) } };
-                _rimBrushes[i] = lg;
-                _rims[i] = new Rectangle { Fill = lg, IsHitTestVisible = false, Opacity = 0 };
+                var fill = new LinearGradientBrush();
+                for (int k = 0; k < BandStops; k++) fill.GradientStops.Add(new GradientStop(Colors.Transparent, k / (double)(BandStops - 1)));
+                var mask = new LinearGradientBrush();
+                mask.GradientStops.Add(new GradientStop(Color.FromArgb(255, 0, 0, 0), 0));
+                mask.GradientStops.Add(new GradientStop(Color.FromArgb(140, 0, 0, 0), 0.22));
+                mask.GradientStops.Add(new GradientStop(Color.FromArgb(45, 0, 0, 0), 0.5));
+                mask.GradientStops.Add(new GradientStop(Color.FromArgb(0, 0, 0, 0), 1));
+                switch (i)
+                {
+                    case 0: fill.StartPoint = new Point(0, 0); fill.EndPoint = new Point(1, 0); mask.StartPoint = new Point(0, 0); mask.EndPoint = new Point(0, 1); break; // top
+                    case 1: fill.StartPoint = new Point(0, 0); fill.EndPoint = new Point(0, 1); mask.StartPoint = new Point(1, 0); mask.EndPoint = new Point(0, 0); break; // right
+                    case 2: fill.StartPoint = new Point(1, 0); fill.EndPoint = new Point(0, 0); mask.StartPoint = new Point(0, 1); mask.EndPoint = new Point(0, 0); break; // bottom
+                    default: fill.StartPoint = new Point(0, 1); fill.EndPoint = new Point(0, 0); mask.StartPoint = new Point(0, 0); mask.EndPoint = new Point(1, 0); break; // left
+                }
+                _rimBrushes[i] = fill;
+                _rims[i] = new Rectangle { Fill = fill, OpacityMask = mask, IsHitTestVisible = false };
                 _canvas.Children.Add(_rims[i]);
             }
-            // gradient directions: edge colour -> transparent inwards
-            _rimBrushes[0].StartPoint = new Point(0, 0); _rimBrushes[0].EndPoint = new Point(0, 1); // top
-            _rimBrushes[1].StartPoint = new Point(0, 1); _rimBrushes[1].EndPoint = new Point(0, 0); // bottom
-            _rimBrushes[2].StartPoint = new Point(0, 0); _rimBrushes[2].EndPoint = new Point(1, 0); // left
-            _rimBrushes[3].StartPoint = new Point(1, 0); _rimBrushes[3].EndPoint = new Point(0, 0); // right
 
             IsVisibleChanged += (_, _) => SetRendering(IsVisible);
         }
@@ -212,46 +204,31 @@ namespace Nightverse
             double hueNow = isStatic ? 0 : _hue + _hueStep;
 
             double baseSize = Math.Min(_w, _h);
-            double reach = (0.16 + _reach * 0.42) * baseSize;
+            double P = 2 * (_w + _h);
+            double pump = 1 + react * (isDynamic ? 0.7 : 0.45) * _bass;
+            double depth = Math.Min(0.16 * baseSize, (0.03 + _reach * 0.09) * baseSize * pump);
+            double alpha = isStatic ? 0.35 + 0.45 * _bright
+                : isDynamic ? Math.Min(0.95, (0.2 + 0.5 * _bright) * (0.4 + react * 1.6 * _bass))
+                : Math.Min(0.9, (0.3 + 0.4 * _bright) * (0.7 + react * 0.8 * _bass));
 
-            for (int i = 0; i < _blobs.Count; i++)
-            {
-                var b = _blobs[i];
-                double u = b.U + _flow * b.Drift + (isStatic ? 0 : Math.Sin(t * 0.35 + b.Wobble) * 0.018);
-                var p = Perimeter(u);
-                double breathe = isStatic ? 1 : 1 + 0.16 * Math.Sin(t * 0.6 + b.Wobble * 1.3);
-                double pump = 1 + react * (isDynamic ? 1.0 : 0.75) * _bass;
-                double r = reach * b.Size * breathe * pump;
-                double inset = -r * 0.18 + r * 0.1 * react * _bass;
-                double cx = p.x + p.nx * -inset, cy = p.y + p.ny * -inset;
-                var c = PaletteAt(b.Phase + hueNow + i * 0.3);
-                double a = isStatic ? Math.Min(1, 0.2 + 0.55 * _bright)
-                    : isDynamic ? Math.Min(1, (0.16 + 0.38 * _bright) * (0.45 + react * 1.5 * _bass))
-                    : Math.Min(1, (0.22 + 0.5 * _bright) * (0.62 + react * 0.9 * _bass));
-
-                b.Shape.Width = r * 2; b.Shape.Height = r * 2;
-                Canvas.SetLeft(b.Shape, cx - r); Canvas.SetTop(b.Shape, cy - r);
-                var st = b.Brush.GradientStops;
-                st[0].Color = Color.FromArgb((byte)(255 * a), c.R, c.G, c.B);
-                st[1].Color = Color.FromArgb((byte)(255 * a * 0.5), c.R, c.G, c.B);
-                st[2].Color = Color.FromArgb((byte)(255 * a * 0.14), c.R, c.G, c.B);
-                st[3].Color = Color.FromArgb(0, c.R, c.G, c.B);
-            }
-
-            // thin bright rim on the beat
-            double rim = Math.Min(1, _kick * react) * (isDynamic ? 0.8 : 0.55) * _bright;
-            double th = 3 + 22 * Math.Min(1, _kick);
-            var rc = PaletteAt(hueNow);
+            // perimeter ranges: top, right, bottom, left (matches the gradient directions set up in the constructor)
+            double[] u0 = { 0, _w / P, (_w + _h) / P, (2 * _w + _h) / P };
+            double[] u1 = { _w / P, (_w + _h) / P, (2 * _w + _h) / P, 1 };
             for (int i = 0; i < 4; i++)
             {
                 var r = _rims[i];
-                r.Opacity = rim > 0.02 ? 1 : 0;
-                if (r.Opacity == 0) continue;
+                r.Opacity = alpha;
                 var gs = _rimBrushes[i].GradientStops;
-                gs[0].Color = Color.FromArgb((byte)(255 * rim), rc.R, rc.G, rc.B);
-                gs[1].Color = Color.FromArgb(0, rc.R, rc.G, rc.B);
-                if (i < 2) { r.Width = _w; r.Height = th; Canvas.SetLeft(r, 0); Canvas.SetTop(r, i == 0 ? 0 : _h - th); }
-                else { r.Width = th; r.Height = _h; Canvas.SetTop(r, 0); Canvas.SetLeft(r, i == 2 ? 0 : _w - th); }
+                for (int k = 0; k < gs.Count; k++)
+                {
+                    double u = u0[i] + (u1[i] - u0[i]) * (k / (double)(gs.Count - 1));
+                    var c = PaletteAt(hueNow + _flow * 8 + u * 3);
+                    gs[k].Color = Color.FromArgb(255, c.R, c.G, c.B);
+                }
+                if (i == 0) { r.Width = _w; r.Height = depth; Canvas.SetLeft(r, 0); Canvas.SetTop(r, 0); }
+                else if (i == 2) { r.Width = _w; r.Height = depth; Canvas.SetLeft(r, 0); Canvas.SetTop(r, _h - depth); }
+                else if (i == 3) { r.Width = depth; r.Height = _h; Canvas.SetLeft(r, 0); Canvas.SetTop(r, 0); }
+                else { r.Width = depth; r.Height = _h; Canvas.SetLeft(r, _w - depth); Canvas.SetTop(r, 0); }
             }
         }
 
