@@ -10,7 +10,7 @@ namespace Nightverse.Services
     {
         /// <summary>"custom" = your colours, "album" = colour taken from the cover art.</summary>
         public string Mode { get; set; } = "custom";
-        /// <summary>"ambient" = soft flowing light, "static" = fixed colours that stay put, "dynamic" = hits hard on every beat.</summary>
+        /// <summary>ambient | static | dynamic | aurora | rays | tunnel — see GlowWindow.</summary>
         public string Style { get; set; } = "ambient";
         public List<string> Colors { get; set; } = new() { "#ff2a55", "#35ff8a", "#2d7bff" };
         public double React { get; set; } = 0.7;       // how hard the light kicks on the beat

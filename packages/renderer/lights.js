@@ -21,10 +21,14 @@
     'Pure white': ['#ffffff', '#ffe9c4'],
   };
   const STYLES = {
-    ambient: 'Soft light that flows around the edges and swells with the music.',
+    ambient: 'A bright glow sweeps round a soft rounded frame, trailing light behind it.',
     static: 'Your colours held in place around the screen. No movement, no beat.',
     dynamic: 'Hits hard on every beat and jumps to a new shade each time.',
+    aurora: 'Northern-lights curtain: soft bars on every edge, dancing to the music.',
+    rays: 'Thin neon streaks shoot inwards from the edges, faster on the beat.',
+    tunnel: 'Neon rings run inwards like a lit tunnel, a new one on every beat.',
   };
+
   const L = { mode: 'custom', style: 'ambient', colors: PRESETS.RGB.slice(), react: 0.7, speed: 0.35, reach: 0.45, gradient: 0.85, brightness: 0.8, glow: true };
   let quiet = false;
 

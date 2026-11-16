@@ -208,7 +208,7 @@ namespace Nightverse
         {
             var L = _settings.Lighting;
             if (lt.TryGetProperty("mode", out var m) && m.GetString() is string mode && (mode == "custom" || mode == "album")) L.Mode = mode;
-            if (lt.TryGetProperty("style", out var sty) && sty.GetString() is string style && (style == "ambient" || style == "static" || style == "dynamic")) L.Style = style;
+            if (lt.TryGetProperty("style", out var sty) && sty.GetString() is string style && GlowWindow.IsStyle(style)) L.Style = style;
             if (lt.TryGetProperty("colors", out var cs) && cs.ValueKind == JsonValueKind.Array)
             {
                 var list = new System.Collections.Generic.List<string>();

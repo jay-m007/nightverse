@@ -59,7 +59,7 @@
 <div id="panel">
   <h2>Ambient lighting</h2>
   <div class="seg" id="styleSeg">
-    <button data-style="ambient">Ambient</button><button data-style="static">Static</button><button data-style="dynamic">Dynamic</button>
+    <button data-style="ambient">Ambient</button><button data-style="static">Static</button><button data-style="dynamic">Dynamic</button><button data-style="aurora">Aurora</button><button data-style="rays">Rays</button><button data-style="tunnel">Tunnel</button>
   </div>
   <div class="note" id="styleDesc" style="margin:0 0 10px"></div>
   <div class="presets" id="presets"></div>
@@ -146,7 +146,14 @@
   }
   bind('react', 'react'); bind('speed', 'speed'); bind('reach', 'reach'); bind('grad', 'grad'); bind('bright', 'bright');
   bind('bpm', 'bpm', 1, (v) => Math.round(v));
-  const DESC = { ambient: 'Soft light that flows around the edges and swells with the music.', static: 'Your colours held in place around the screen. No movement, no beat.', dynamic: 'Hits hard on every beat and jumps to a new shade each time.' };
+  const DESC = {
+    ambient: 'A bright glow sweeps round a soft rounded frame, trailing light behind it.',
+    static: 'Your colours held in place around the screen. No movement, no beat.',
+    dynamic: 'Hits hard on every beat and jumps to a new shade each time.',
+    aurora: 'Northern-lights curtain: soft bars on every edge, dancing to the music.',
+    rays: 'Thin neon streaks shoot inwards from the edges, faster on the beat.',
+    tunnel: 'Neon rings run inwards like a lit tunnel, a new one on every beat.',
+  };
   function setStyle(v) { S.style = v; document.querySelectorAll('#styleSeg button').forEach((b) => b.classList.toggle('on', b.dataset.style === v)); document.getElementById('styleDesc').textContent = DESC[v]; }
   document.querySelectorAll('#styleSeg button').forEach((b) => b.addEventListener('click', () => setStyle(b.dataset.style)));
   setStyle('ambient');
@@ -157,14 +164,9 @@
   // ---- the lighting ----
   // Fluid blobs hug the screen perimeter, drift along it, shift through the palette
   // and swell with the bass. Light bleeds inward from the edges like a backlit wall.
-  const N = 32;
-  const blobs = Array.from({ length: N }, (_, i) => ({
-    u: i / N,                 // position along the perimeter 0..1
-    drift: .6 + ((i * 37) % 10) / 10,   // individual drift factor
-    ph: i * 0.22,        // colour phase
-    wob: i * 1.7,
-    size: .85 + ((i * 53) % 10) / 30,
-  }));
+  const NB = 56, NBAR = 72, NRING = 6;
+  const blobs = Array.from({ length: NB }, (_, i) => ({ u: i / NB, wob: i * 1.7, size: .85 + ((i * 53) % 10) / 30 }));
+  const bars = Array.from({ length: NBAR }, (_, i) => ({ seed: (i * 97 % 101) / 101, ph: (i * 61 % 97) / 97 }));
 
   function palette(p) {          // smooth colour at fractional index p
     const n = colors.length;
@@ -173,24 +175,50 @@
     const e = f * f * (3 - 2 * f);
     return [A[0] + (B[0] - A[0]) * e, A[1] + (B[1] - A[1]) * e, A[2] + (B[2] - A[2]) * e];
   }
-  function perimeter(u) {        // point on the screen edge, with inward normal
+  const hot = (c, t) => t <= 0 ? c : c.map((v) => v + (255 - v) * Math.min(1, t));
+  const rgb = (c) => `${c[0] | 0},${c[1] | 0},${c[2] | 0}`;
+  const corner = () => Math.min(.13 * Math.min(W, H), Math.min(W, H) / 2);
+
+  function perimeter(u) {        // point + inward normal on a rounded-rectangle frame
     u = ((u % 1) + 1) % 1;
-    const P = 2 * (W + H), d = u * P;
-    if (d < W) return { x: d, y: 0, nx: 0, ny: 1 };
-    if (d < W + H) return { x: W, y: d - W, nx: -1, ny: 0 };
-    if (d < 2 * W + H) return { x: W - (d - W - H), y: H, nx: 0, ny: -1 };
-    return { x: 0, y: H - (d - 2 * W - H), nx: 1, ny: 0 };
+    const r = corner(), sw = Math.max(0, W - 2 * r), sh = Math.max(0, H - 2 * r), arc = Math.PI * r / 2;
+    let d = u * (2 * (sw + sh) + 4 * arc);
+    if (d < sw) return { x: r + d, y: 0, nx: 0, ny: 1 };
+    d -= sw;
+    if (d < arc) { const a = -Math.PI / 2 + d / r; return { x: W - r + r * Math.cos(a), y: r + r * Math.sin(a), nx: -Math.cos(a), ny: -Math.sin(a) }; }
+    d -= arc;
+    if (d < sh) return { x: W, y: r + d, nx: -1, ny: 0 };
+    d -= sh;
+    if (d < arc) { const a = d / r; return { x: W - r + r * Math.cos(a), y: H - r + r * Math.sin(a), nx: -Math.cos(a), ny: -Math.sin(a) }; }
+    d -= arc;
+    if (d < sw) return { x: W - r - d, y: H, nx: 0, ny: -1 };
+    d -= sw;
+    if (d < arc) { const a = Math.PI / 2 + d / r; return { x: r + r * Math.cos(a), y: H - r + r * Math.sin(a), nx: -Math.cos(a), ny: -Math.sin(a) }; }
+    d -= arc;
+    if (d < sh) return { x: 0, y: H - r - d, nx: 1, ny: 0 };
+    d -= sh;
+    const a = Math.PI + d / r; return { x: r + r * Math.cos(a), y: r + r * Math.sin(a), nx: -Math.cos(a), ny: -Math.sin(a) };
+  }
+  function sweep(u, head, width) {   // hot head with a tail trailing behind it
+    const behind = ((head - u) % 1 + 1) % 1, gap = Math.min(behind, 1 - behind);
+    return Math.min(1.4, Math.exp(-Math.pow(gap / (width * .42), 2)) + .6 * Math.exp(-behind / (width * 2.4)));
   }
 
   const mouse = { x: 0, y: 0, in: false }; let dim = 1;
   addEventListener('mousemove', (e) => { mouse.x = e.clientX; mouse.y = e.clientY; mouse.in = true; });
   document.addEventListener('mouseleave', () => { mouse.in = false; });
-  let level = 0, bass = 0, hit = 0, lastBeat = -1, kick = 0, hueStep = 0;
+  let bass = 0, lastBeat = -1, kick = 0, hueStep = 0, ringPhase = 0;
   let t0 = performance.now(), prev = t0, flow = 0, hue = 0;
   function simBeat(t) {
-    const beatsPerSec = S.bpm / 60;
-    const x = t * beatsPerSec, idx = Math.floor(x), frac = x - idx;
-    if (idx !== lastBeat) { lastBeat = idx; if (S.beat && S.style !== 'static') { kick = (idx % 4 === 0) ? 1 : .72; hit = 1; if (S.style === 'dynamic') hueStep += .5; } }
+    const x = t * (S.bpm / 60), idx = Math.floor(x), frac = x - idx;
+    if (idx !== lastBeat) {
+      lastBeat = idx;
+      if (S.beat && S.style !== 'static') {
+        kick = (idx % 4 === 0) ? 1 : .72;
+        if (S.style === 'dynamic') hueStep += .5;
+        if (S.style === 'tunnel') ringPhase += 1 / NRING;
+      }
+    }
     return Math.exp(-frac * 5.5) * kick;
   }
 
@@ -198,10 +226,15 @@
     const dt = Math.min(.05, (now - prev) / 1000); prev = now;
     const t = (now - t0) / 1000;
     const isStatic = S.style === 'static', isDyn = S.style === 'dynamic';
+    const isAurora = S.style === 'aurora', isRays = S.style === 'rays', isTunnel = S.style === 'tunnel';
     const env = (S.beat && !isStatic) ? simBeat(t) : 0;
-    bass += (env - bass) * Math.min(1, dt * 26);              // fast attack
-    if (env < bass) bass += (env - bass) * Math.min(1, dt * (isDyn ? 11 : 6));  // release
-    if (!isStatic) { flow += dt * (.012 + S.speed * (isDyn ? .16 : .09)); hue += dt * (.05 + S.speed * .55); }
+    bass += (env - bass) * Math.min(1, dt * 26);
+    if (env < bass) bass += (env - bass) * Math.min(1, dt * (isDyn ? 11 : 6));
+    if (!isStatic) {
+      flow += dt * (.012 + S.speed * (isDyn ? .16 : .09));
+      hue += dt * (.05 + S.speed * .55);
+      if (isTunnel) ringPhase += dt * (.08 + S.speed * .35);
+    }
     const hueNow = isStatic ? 0 : hue + hueStep;
 
     ctx.clearRect(0, 0, W, H);
@@ -211,31 +244,125 @@
     const reach = (.07 + S.reach * .27) * base;
     const plateau = .6 * (1 - S.grad);
     const fade = [0, 1, 2, 3, 4, 5].map((k) => { const q = Math.min(1, Math.max(0, (k * .2 - plateau) / (1 - plateau))); return Math.pow(1 - q * q * (3 - 2 * q), 1.5); });
-    const pump = 1 + react * (isDyn ? .9 : .55) * bass;
-    const alpha = isStatic ? .2 + .36 * S.bright
-      : isDyn ? Math.min(.8, (.2 + .34 * S.bright) * (.5 + react * 1.5 * bass))
-      : Math.min(.62, (.2 + .3 * S.bright) * (.75 + react * .7 * bass));
+
     // dim to a faint minimum while the cursor is near an edge / taskbar, so other apps stay easy to see
     const zone = Math.max(90, .16 * base), edgeD = Math.min(mouse.x, W - mouse.x, mouse.y, H - mouse.y);
     const dimT = mouse.in && edgeD < zone ? .15 + .85 * Math.max(0, edgeD) / zone : 1;
     dim += (dimT - dim) * Math.min(1, dt * (dimT < dim ? 8 : 2.5));
-    const A = alpha * dim;
+
+    if (isAurora || isRays) drawBars(t, hueNow, react, reach, isRays);
+    else if (isTunnel) drawRings(hueNow, react, reach);
+    else drawBand(t, hueNow, react, isStatic, isDyn, reach, fade);
+    requestAnimationFrame(frame);
+  }
+
+  // ---- ambient / static / dynamic: a glowing band around the rounded frame ----
+  function drawBand(t, hueNow, react, isStatic, isDyn, reach, fade) {
+    const head1 = flow * 2.1, head2 = flow * 1.37 + .47;
+    const width = .06 + .05 * (1 - S.speed), flare = 1 + react * .9 * bass;
+    let alpha = isStatic ? .2 + .36 * S.bright
+      : isDyn ? Math.min(.8, (.2 + .34 * S.bright) * (.5 + react * 1.5 * bass))
+      : Math.min(.72, .22 + .34 * S.bright);
+    alpha *= dim;
     blobs.forEach((b) => {
-      const u = b.u + (isStatic ? 0 : flow * .5 * b.drift + Math.sin(t * .3 + b.wob) * .012);
+      const u = b.u + (isStatic ? 0 : Math.sin(t * .3 + b.wob) * .004);
       const p = perimeter(u);
-      const wave = isStatic ? 1 : 1 + .32 * Math.sin(t * .55 + b.wob) + .12 * Math.sin(t * 1.3 + b.wob * 2.1);
-      const r = reach * b.size * wave * pump;
-      const inset = r * (.30 + (isStatic ? 0 : .22 * Math.sin(t * .45 + b.wob * 1.4)));
+      let lvl, hotness;
+      if (isStatic) { lvl = 1; hotness = 0; }
+      else if (isDyn) { lvl = .55 + .9 * bass; hotness = .35 * bass; }
+      else {
+        const sv = Math.max(sweep(u, head1, width), sweep(u, head2 % 1, width * .8)) * flare;
+        lvl = .34 + 1.0 * sv;
+        hotness = Math.min(.75, .9 * Math.max(0, sv - .45));
+      }
+      const wave = isStatic ? 1 : 1 + .12 * Math.sin(t * .55 + b.wob);
+      const r = reach * b.size * wave * (.52 + .62 * Math.min(1.3, lvl));
+      const inset = r * .34;
       const cx = p.x - p.nx * inset, cy = p.y - p.ny * inset;
-      const [R, G, B] = palette(b.ph + (isStatic ? 0 : hueNow + flow * 2));
-      const c = `${R | 0},${G | 0},${B | 0}`;
+      const c = rgb(hot(palette(b.u * 1.6 + (isStatic ? 0 : hueNow)), hotness));
+      const A = Math.min(1, alpha * Math.min(1.25, lvl));
       const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
       for (let k = 0; k < 5; k++) g.addColorStop(k * .2, `rgba(${c},${Math.min(1, A * fade[k])})`);
       g.addColorStop(1, `rgba(${c},0)`);
       ctx.fillStyle = g; ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
     });
-    requestAnimationFrame(frame);
   }
+
+  // ---- aurora curtain / neon rays ----
+  function drawBars(t, hueNow, react, reach, rays) {
+    const alpha = Math.min(.8, (rays ? .3 : .26) + .42 * S.bright) * dim;
+    const pump = 1 + react * (rays ? 1.1 : .85) * bass;
+    const per = NBAR / 4;
+    const place = (x, y, w, h, r) => { ctx.beginPath(); ctx.roundRect(x, y, w, h, r); ctx.fill(); };
+    bars.forEach((b, i) => {
+      const edge = Math.min(3, Math.floor(i / per)), k = i % per;
+      const span = (edge === 0 || edge === 2) ? W : H, slot = span / per;
+      const pos = slot * (k + .5) + (b.seed - .5) * slot * .6;
+      const thick = rays ? Math.max(2, slot * .085) : Math.max(4, slot * (.26 + .24 * b.seed));
+      const wob = Math.sin(t * (rays ? 1.1 : .5) * (.6 + b.seed) + b.ph * 9.4);
+      let len, headA;
+      if (rays) {
+        const travel = (t * (.35 + S.speed * 1.5) * (.6 + b.seed * .9) + b.ph) % 1;
+        len = reach * (.3 + 1.0 * travel) * pump;
+        headA = Math.sin(Math.PI * Math.min(1, travel * 1.15));
+      } else {
+        len = reach * (.3 + .4 * b.seed + .25 * wob) * pump;
+        headA = .72 + .28 * wob;
+      }
+      len = Math.max(6, len);
+      const col = palette(b.ph * 2.4 + hueNow + edge * .35);
+      const c = rgb(col), tip = rgb(hot(col, .6));
+      const A = Math.min(1, alpha * headA);
+
+      // a soft wide halo first, then the brighter core on top
+      for (const pass of [0, 1]) {
+        const halo = pass === 0;
+        const a = halo ? A * .4 : A;
+        const th = halo ? thick * (rays ? 5.5 : 2.4) : thick;
+        const ln = halo ? len * (rays ? .95 : 1.05) : len;
+        let x, y, w, h, gx0, gy0, gx1, gy1;
+        if (edge === 0) { x = pos - th / 2; y = 0; w = th; h = ln; gx0 = x; gy0 = 0; gx1 = x; gy1 = ln; }
+        else if (edge === 1) { x = W - ln; y = pos - th / 2; w = ln; h = th; gx0 = W; gy0 = y; gx1 = W - ln; gy1 = y; }
+        else if (edge === 2) { x = pos - th / 2; y = H - ln; w = th; h = ln; gx0 = x; gy0 = H; gx1 = x; gy1 = H - ln; }
+        else { x = 0; y = pos - th / 2; w = ln; h = th; gx0 = 0; gy0 = y; gx1 = ln; gy1 = y; }
+        const g = ctx.createLinearGradient(gx0, gy0, gx1, gy1);
+        if (rays) {
+          g.addColorStop(0, `rgba(${c},0)`); g.addColorStop(.35, `rgba(${c},${a * .22})`);
+          g.addColorStop(.75, `rgba(${c},${a * .8})`); g.addColorStop(1, `rgba(${halo ? c : tip},${a})`);
+        } else {
+          g.addColorStop(0, `rgba(${c},${a})`); g.addColorStop(.35, `rgba(${c},${a * .55})`);
+          g.addColorStop(.75, `rgba(${c},${a * .15})`); g.addColorStop(1, `rgba(${c},0)`);
+        }
+        ctx.fillStyle = g;
+        place(x, y, w, h, th / 2);
+      }
+    });
+  }
+
+  // ---- tunnel: neon rings receding inwards ----
+  function drawRings(hueNow, react, reach) {
+    const alpha = Math.min(.75, .18 + .45 * S.bright) * dim;
+    const pump = 1 + react * .5 * bass;
+    for (let i = 0; i < NRING; i++) {
+      const p = ((ringPhase + i / NRING) % 1 + 1) % 1;
+      const inset = reach * p * 1.15, w = W - 2 * inset, h = H - 2 * inset;
+      if (w <= 2 || h <= 2) continue;
+      const near = 1 - p;
+      const A = alpha * Math.pow(near, 2.2) * (.45 + .75 * pump * near);
+      const col = palette(i * .6 + hueNow);
+      const thick = Math.max(1.2, reach * .022 * (.5 + near));
+      const rad = Math.max(0, corner() - inset * .6);
+      for (let k = 0; k < 3; k++) {
+        const mul = k === 0 ? 7 : k === 1 ? 2.6 : 1;
+        const fa = k === 0 ? .12 : k === 1 ? .33 : 1;
+        const c = rgb(k === 2 ? hot(col, .45) : col);
+        ctx.strokeStyle = `rgba(${c},${Math.min(1, Math.max(0, A * fa))})`;
+        ctx.lineWidth = thick * mul;
+        ctx.beginPath(); ctx.roundRect(inset, inset, w, h, rad); ctx.stroke();
+      }
+    }
+  }
+
   requestAnimationFrame(frame);
   window.__nv = { S, setStyle, setColors: (c) => { colors = c.slice(); drawSwatches(); } };
 })();
