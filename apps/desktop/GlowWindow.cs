@@ -44,6 +44,9 @@ namespace Nightverse
         private double _flow, _hue, _bass, _kick;
         private long _seenBeats;
         private DateTime _last = DateTime.UtcNow;
+        private double _dim = 1;                 // 1 = full glow, ~0.15 = faint while the cursor is near an edge / the taskbar
+        [StructLayout(LayoutKind.Sequential)] private struct POINT { public int X, Y; }
+        [DllImport("user32.dll")] private static extern bool GetCursorPos(out POINT p);
         private readonly DateTime _t0 = DateTime.UtcNow;
         private bool _rendering;
 
@@ -202,6 +205,19 @@ namespace Nightverse
             }
             double hueNow = isStatic ? 0 : _hue + _hueStep;
 
+            // Stay out of the way: when the cursor goes near the screen edges or the taskbar (using other apps,
+            // opening the taskbar, resizing windows) fade the light down to a faint minimum so everything stays easy to see.
+            double dimTarget = 1;
+            if (GetCursorPos(out var cp))
+            {
+                var dpi = VisualTreeHelper.GetDpi(this);
+                double mx = cp.X / dpi.DpiScaleX - Left, my = cp.Y / dpi.DpiScaleY - Top;       // relative to the glow window
+                double edge = Math.Min(Math.Min(mx, _w - mx), Math.Min(my, _h - my));          // negative when over the taskbar
+                double zone = Math.Max(90, 0.16 * Math.Min(_w, _h));
+                if (edge < zone) dimTarget = 0.15 + 0.85 * Math.Max(0, edge) / zone;
+            }
+            _dim += (dimTarget - _dim) * Math.Min(1, dt * (dimTarget < _dim ? 8 : 2.5));      // dims fast, returns gently
+
             double baseSize = Math.Min(_w, _h);
             double reach = (0.10 + _reach * 0.2) * baseSize;
             double pump = 1 + react * (isDynamic ? 0.9 : 0.55) * _bass;
@@ -209,6 +225,7 @@ namespace Nightverse
                 : isDynamic ? Math.Min(0.8, (0.2 + 0.34 * _bright) * (0.5 + react * 1.5 * _bass))
                 : Math.Min(0.62, (0.2 + 0.3 * _bright) * (0.75 + react * 0.7 * _bass));
 
+            alpha *= _dim;
             for (int i = 0; i < _blobs.Count; i++)
             {
                 var b = _blobs[i];

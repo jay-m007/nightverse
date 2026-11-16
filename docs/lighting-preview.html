@@ -181,6 +181,9 @@
     return { x: 0, y: H - (d - 2 * W - H), nx: 1, ny: 0 };
   }
 
+  const mouse = { x: 0, y: 0, in: false }; let dim = 1;
+  addEventListener('mousemove', (e) => { mouse.x = e.clientX; mouse.y = e.clientY; mouse.in = true; });
+  document.addEventListener('mouseleave', () => { mouse.in = false; });
   let level = 0, bass = 0, hit = 0, lastBeat = -1, kick = 0, hueStep = 0;
   let t0 = performance.now(), prev = t0, flow = 0, hue = 0;
   function simBeat(t) {
@@ -209,6 +212,11 @@
     const alpha = isStatic ? .2 + .36 * S.bright
       : isDyn ? Math.min(.8, (.2 + .34 * S.bright) * (.5 + react * 1.5 * bass))
       : Math.min(.62, (.2 + .3 * S.bright) * (.75 + react * .7 * bass));
+    // dim to a faint minimum while the cursor is near an edge / taskbar, so other apps stay easy to see
+    const zone = Math.max(90, .16 * base), edgeD = Math.min(mouse.x, W - mouse.x, mouse.y, H - mouse.y);
+    const dimT = mouse.in && edgeD < zone ? .15 + .85 * Math.max(0, edgeD) / zone : 1;
+    dim += (dimT - dim) * Math.min(1, dt * (dimT < dim ? 8 : 2.5));
+    const A = alpha * dim;
     blobs.forEach((b) => {
       const u = b.u + (isStatic ? 0 : flow * .5 * b.drift + Math.sin(t * .3 + b.wob) * .012);
       const p = perimeter(u);
@@ -219,8 +227,8 @@
       const [R, G, B] = palette(b.ph + (isStatic ? 0 : hueNow + flow * 2));
       const c = `${R | 0},${G | 0},${B | 0}`;
       const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
-      g.addColorStop(0, `rgba(${c},${alpha})`); g.addColorStop(.35, `rgba(${c},${alpha * .55})`);
-      g.addColorStop(.7, `rgba(${c},${alpha * .16})`); g.addColorStop(1, `rgba(${c},0)`);
+      g.addColorStop(0, `rgba(${c},${A})`); g.addColorStop(.35, `rgba(${c},${A * .55})`);
+      g.addColorStop(.7, `rgba(${c},${A * .16})`); g.addColorStop(1, `rgba(${c},0)`);
       ctx.fillStyle = g; ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
     });
     requestAnimationFrame(frame);
