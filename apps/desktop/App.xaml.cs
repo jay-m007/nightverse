@@ -217,7 +217,7 @@ namespace Nightverse
                 if (list.Count > 0) L.Colors = list;
             }
             double D(string n, double cur) => lt.TryGetProperty(n, out var v) && v.ValueKind == JsonValueKind.Number ? Math.Clamp(v.GetDouble(), 0, 1) : cur;
-            L.React = D("react", L.React); L.Speed = D("speed", L.Speed); L.Reach = D("reach", L.Reach); L.Brightness = D("brightness", L.Brightness);
+            L.React = D("react", L.React); L.Speed = D("speed", L.Speed); L.Reach = D("reach", L.Reach); L.Gradient = D("gradient", L.Gradient); L.Brightness = D("brightness", L.Brightness);
             bool glowChanged = false;
             if (lt.TryGetProperty("glow", out var g) && (g.ValueKind == JsonValueKind.True || g.ValueKind == JsonValueKind.False) && g.GetBoolean() != _settings.GlowEnabled)
             {
@@ -232,7 +232,7 @@ namespace Nightverse
         private void PostLighting()
         {
             var L = _settings.Lighting;
-            _main.Post(new { type = "lighting", lighting = new { mode = L.Mode, style = L.Style, colors = L.Colors, react = L.React, speed = L.Speed, reach = L.Reach, brightness = L.Brightness, glow = _settings.GlowEnabled } });
+            _main.Post(new { type = "lighting", lighting = new { mode = L.Mode, style = L.Style, colors = L.Colors, react = L.React, speed = L.Speed, reach = L.Reach, gradient = L.Gradient, brightness = L.Brightness, glow = _settings.GlowEnabled } });
         }
 
         private bool _glowShown;

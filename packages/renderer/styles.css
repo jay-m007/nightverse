@@ -146,7 +146,7 @@ body.show-lights #lights { display: block; }
 #lights #lt-close { background: transparent; border: 0; color: var(--ink-dim); cursor: pointer; font-size: 14px; padding: 4px 8px; border-radius: 8px; }
 #lights #lt-close:hover { background: rgb(255 255 255 / 0.1); color: var(--ink); }
 #lights .lt-row { display: flex; justify-content: space-between; align-items: center; margin: 8px 0; color: var(--ink-dim); }
-#lights .lt-range { display: grid; grid-template-columns: 96px 1fr 30px; align-items: center; gap: 8px; margin: 9px 0; color: var(--ink-dim); }
+#lights .lt-range { display: grid; grid-template-columns: 124px 1fr 30px; align-items: center; gap: 8px; margin: 9px 0; color: var(--ink-dim); }
 #lights .lt-range output { text-align: right; color: var(--ink); font-variant-numeric: tabular-nums; }
 #lights input[type=range] { width: 100%; accent-color: var(--accent); }
 #lights .lt-sub { color: var(--ink-dim); margin: 10px 0 6px; }

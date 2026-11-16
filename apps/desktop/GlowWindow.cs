@@ -38,7 +38,7 @@ namespace Nightverse
         private double _hueStep;
         private bool _albumMode;           // "album colour" mode
         private Color _album = Color.FromRgb(255, 170, 60);
-        private double _react = 0.7, _speed = 0.35, _reach = 0.45, _bright = 0.8;
+        private double _react = 0.7, _speed = 0.35, _reach = 0.45, _bright = 0.8, _grad = 0.85;
 
         private double _w, _h;
         private double _flow, _hue, _bass, _kick;
@@ -78,8 +78,9 @@ namespace Nightverse
             {
                 var brush = new RadialGradientBrush { GradientStops = new GradientStopCollection
                 {
-                    new GradientStop(Colors.Transparent, 0), new GradientStop(Colors.Transparent, 0.35),
-                    new GradientStop(Colors.Transparent, 0.7), new GradientStop(Colors.Transparent, 1),
+                    new GradientStop(Colors.Transparent, 0), new GradientStop(Colors.Transparent, 0.2),
+                    new GradientStop(Colors.Transparent, 0.4), new GradientStop(Colors.Transparent, 0.6),
+                    new GradientStop(Colors.Transparent, 0.8), new GradientStop(Colors.Transparent, 1),
                 } };
                 var el = new Ellipse { Fill = brush, IsHitTestVisible = false };
                 _canvas.Children.Add(el);
@@ -105,6 +106,7 @@ namespace Nightverse
             _react = Math.Clamp(s.React, 0, 1);
             _speed = Math.Clamp(s.Speed, 0, 1);
             _reach = Math.Clamp(s.Reach, 0.05, 1);
+            _grad = Math.Clamp(s.Gradient, 0, 1);
             _bright = Math.Clamp(s.Brightness, 0.05, 1);
             var pal = new List<Color>();
             foreach (var hex in s.Colors)
@@ -219,7 +221,15 @@ namespace Nightverse
             _dim += (dimTarget - _dim) * Math.Min(1, dt * (dimTarget < _dim ? 8 : 2.5));      // dims fast, returns gently
 
             double baseSize = Math.Min(_w, _h);
-            double reach = (0.10 + _reach * 0.2) * baseSize;
+            double reach = (0.07 + _reach * 0.27) * baseSize;
+            // gradient softness: 0 = solid colour that only fades at the very end, 1 = long smooth fade from the centre
+            double plateau = 0.6 * (1 - _grad);
+            double[] fade = new double[6];
+            for (int k = 0; k < 6; k++)
+            {
+                double x = k * 0.2, q = Math.Clamp((x - plateau) / (1 - plateau), 0, 1);
+                fade[k] = Math.Pow(1 - q * q * (3 - 2 * q), 1.5);
+            }
             double pump = 1 + react * (isDynamic ? 0.9 : 0.55) * _bass;
             double alpha = isStatic ? 0.2 + 0.36 * _bright
                 : isDynamic ? Math.Min(0.8, (0.2 + 0.34 * _bright) * (0.5 + react * 1.5 * _bass))
@@ -241,10 +251,9 @@ namespace Nightverse
                 b.Shape.Width = r * 2; b.Shape.Height = r * 2;
                 Canvas.SetLeft(b.Shape, cx - r); Canvas.SetTop(b.Shape, cy - r);
                 var st = b.Brush.GradientStops;
-                st[0].Color = Color.FromArgb((byte)(255 * alpha), c.R, c.G, c.B);
-                st[1].Color = Color.FromArgb((byte)(255 * alpha * 0.55), c.R, c.G, c.B);
-                st[2].Color = Color.FromArgb((byte)(255 * alpha * 0.16), c.R, c.G, c.B);
-                st[3].Color = Color.FromArgb(0, c.R, c.G, c.B);
+                for (int k = 0; k < 6; k++)
+                    st[k].Color = Color.FromArgb((byte)(255 * Math.Min(1, alpha * fade[k])), c.R, c.G, c.B);
+                st[5].Color = Color.FromArgb(0, c.R, c.G, c.B);
             }
         }
 

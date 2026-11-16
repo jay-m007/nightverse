@@ -25,7 +25,7 @@
     static: 'Your colours held in place around the screen. No movement, no beat.',
     dynamic: 'Hits hard on every beat and jumps to a new shade each time.',
   };
-  const L = { mode: 'custom', style: 'ambient', colors: PRESETS.RGB.slice(), react: 0.7, speed: 0.35, reach: 0.45, brightness: 0.8, glow: true };
+  const L = { mode: 'custom', style: 'ambient', colors: PRESETS.RGB.slice(), react: 0.7, speed: 0.35, reach: 0.45, gradient: 0.85, brightness: 0.8, glow: true };
   let quiet = false;
 
   function push() {
@@ -72,7 +72,7 @@
     syncStyle();
     $('#lt-glow').checked = !!L.glow;
     $('#lt-album').checked = L.mode === 'album';
-    [['#lt-react', 'react'], ['#lt-speed', 'speed'], ['#lt-reach', 'reach'], ['#lt-bright', 'brightness']].forEach(([id, k]) => {
+    [['#lt-react', 'react'], ['#lt-speed', 'speed'], ['#lt-reach', 'reach'], ['#lt-grad', 'gradient'], ['#lt-bright', 'brightness']].forEach(([id, k]) => {
       const el = $(id); el.value = Math.round(L[k] * 100); el.parentElement.querySelector('output').textContent = Math.round(L[k] * 100);
     });
     drawSwatches();
@@ -85,7 +85,7 @@
     b.addEventListener('click', () => { L.colors = PRESETS[name].slice(); L.mode = 'custom'; $('#lt-album').checked = false; drawSwatches(); push(); });
     pre.appendChild(b);
   });
-  bindRange('#lt-react', 'react'); bindRange('#lt-speed', 'speed'); bindRange('#lt-reach', 'reach'); bindRange('#lt-bright', 'brightness');
+  bindRange('#lt-react', 'react'); bindRange('#lt-speed', 'speed'); bindRange('#lt-reach', 'reach'); bindRange('#lt-grad', 'gradient'); bindRange('#lt-bright', 'brightness');
   $('#lt-glow').addEventListener('change', (e) => { L.glow = e.target.checked; push(); });
   $('#lt-album').addEventListener('change', (e) => { L.mode = e.target.checked ? 'album' : 'custom'; push(); });
   $('#lt-close').addEventListener('click', () => document.body.classList.remove('show-lights'));
@@ -95,7 +95,7 @@
     set(v) {
       quiet = true;
       if (Array.isArray(v.colors) && v.colors.length) L.colors = v.colors.slice(0, 12);
-      ['mode', 'style', 'react', 'speed', 'reach', 'brightness', 'glow'].forEach((k) => { if (v[k] !== undefined) L[k] = v[k]; });
+      ['mode', 'style', 'react', 'speed', 'reach', 'gradient', 'brightness', 'glow'].forEach((k) => { if (v[k] !== undefined) L[k] = v[k]; });
       syncUi();
       quiet = false;
     },

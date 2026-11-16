@@ -15,7 +15,8 @@ namespace Nightverse.Services
         public List<string> Colors { get; set; } = new() { "#ff2a55", "#35ff8a", "#2d7bff" };
         public double React { get; set; } = 0.7;       // how hard the light kicks on the beat
         public double Speed { get; set; } = 0.35;      // how fast it flows / changes colour
-        public double Reach { get; set; } = 0.45;      // how far it spreads inwards
+        public double Reach { get; set; } = 0.45;      // screen coverage: how far the light spreads inwards
+        public double Gradient { get; set; } = 0.85;   // 0 = solid colour with a short fade, 1 = long, smooth gradient
         public double Brightness { get; set; } = 0.8;
     }
 

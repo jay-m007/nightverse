@@ -67,7 +67,8 @@
   <div class="swatches" id="sw"></div>
   <label>Beat reaction <input id="react" type="range" min="0" max="100" value="70"><output></output></label>
   <label>Flow speed <input id="speed" type="range" min="0" max="100" value="35"><output></output></label>
-  <label>Reach <input id="reach" type="range" min="10" max="100" value="45"><output></output></label>
+  <label>Screen coverage % <input id="reach" type="range" min="5" max="100" value="45"><output></output></label>
+  <label>Gradient softness <input id="grad" type="range" min="0" max="100" value="85"><output></output></label>
   <label>Brightness <input id="bright" type="range" min="10" max="100" value="80"><output></output></label>
   <label>Simulated BPM <input id="bpm" type="range" min="60" max="180" value="116"><output></output></label>
   <button class="tog" id="beatTog">Beat: on</button>
@@ -107,7 +108,7 @@
     'Pure white': ['#ffffff', '#ffe9c4'],
   };
   let colors = PRESETS['RGB'].slice();
-  const S = { style: 'ambient', react: .7, speed: .35, reach: .45, bright: .8, bpm: 116, beat: true };
+  const S = { style: 'ambient', react: .7, speed: .35, reach: .45, grad: .85, bright: .8, bpm: 116, beat: true };
 
   // ---- UI ----
   const sw = document.getElementById('sw');
@@ -143,7 +144,7 @@
     const upd = () => { S[key] = el.value / scale; out.textContent = fmt(S[key]); };
     el.addEventListener('input', upd); upd();
   }
-  bind('react', 'react'); bind('speed', 'speed'); bind('reach', 'reach'); bind('bright', 'bright');
+  bind('react', 'react'); bind('speed', 'speed'); bind('reach', 'reach'); bind('grad', 'grad'); bind('bright', 'bright');
   bind('bpm', 'bpm', 1, (v) => Math.round(v));
   const DESC = { ambient: 'Soft light that flows around the edges and swells with the music.', static: 'Your colours held in place around the screen. No movement, no beat.', dynamic: 'Hits hard on every beat and jumps to a new shade each time.' };
   function setStyle(v) { S.style = v; document.querySelectorAll('#styleSeg button').forEach((b) => b.classList.toggle('on', b.dataset.style === v)); document.getElementById('styleDesc').textContent = DESC[v]; }
@@ -207,7 +208,9 @@
     ctx.globalCompositeOperation = 'source-over';
     const base = Math.min(W, H);
     const react = isStatic ? 0 : isDyn ? Math.min(1, S.react * 1.35 + .25) : S.react;
-    const reach = (.10 + S.reach * .2) * base;
+    const reach = (.07 + S.reach * .27) * base;
+    const plateau = .6 * (1 - S.grad);
+    const fade = [0, 1, 2, 3, 4, 5].map((k) => { const q = Math.min(1, Math.max(0, (k * .2 - plateau) / (1 - plateau))); return Math.pow(1 - q * q * (3 - 2 * q), 1.5); });
     const pump = 1 + react * (isDyn ? .9 : .55) * bass;
     const alpha = isStatic ? .2 + .36 * S.bright
       : isDyn ? Math.min(.8, (.2 + .34 * S.bright) * (.5 + react * 1.5 * bass))
@@ -227,8 +230,8 @@
       const [R, G, B] = palette(b.ph + (isStatic ? 0 : hueNow + flow * 2));
       const c = `${R | 0},${G | 0},${B | 0}`;
       const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
-      g.addColorStop(0, `rgba(${c},${A})`); g.addColorStop(.35, `rgba(${c},${A * .55})`);
-      g.addColorStop(.7, `rgba(${c},${A * .16})`); g.addColorStop(1, `rgba(${c},0)`);
+      for (let k = 0; k < 5; k++) g.addColorStop(k * .2, `rgba(${c},${Math.min(1, A * fade[k])})`);
+      g.addColorStop(1, `rgba(${c},0)`);
       ctx.fillStyle = g; ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
     });
     requestAnimationFrame(frame);
