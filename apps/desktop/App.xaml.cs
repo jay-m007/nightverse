@@ -18,6 +18,7 @@ namespace Nightverse
         private AppSettings _settings = new();
         private readonly MediaWatcher _media = new();
         private readonly LyricsService _lyrics = new();
+        private readonly AudioAnalyzer _audio = new();
         private MainWindow _main = null!;
         private GlowWindow? _glow;
         private Forms.NotifyIcon? _tray;
@@ -67,6 +68,7 @@ namespace Nightverse
             _timer.Tick += (_, _) => _media.PushPosition();
             _timer.Start();
 
+            _audio.Start();
             if (_settings.GlowEnabled) EnsureGlow();
         }
 
@@ -113,7 +115,8 @@ namespace Nightverse
 
         private void ReplayState()
         {
-            _main.Post(new { type = "settings", settings = new { theme = _settings.Theme, showClock = _settings.ShowClock, mini = _main.IsMini } });
+            _main.Post(new { type = "settings", settings = new { theme = _main.IsMini ? "vinyl" : _settings.Theme, showClock = _settings.ShowClock, mini = _main.IsMini } });
+            PostLighting();
             if (_lastTrack != null) _main.Post(_lastTrack); else _main.Post(new { type = "idle" });
             if (_lastLyrics != null) _main.Post(_lastLyrics);
             _media.PushPosition();
@@ -131,7 +134,7 @@ namespace Nightverse
                 case "settings":
                     if (msg.TryGetProperty("settings", out var s))
                     {
-                        if (s.TryGetProperty("theme", out var th) && th.GetString() is string theme && Themes.Contains(theme)) _settings.Theme = theme;
+                        if (!_main.IsMini && s.TryGetProperty("theme", out var th) && th.GetString() is string theme && Themes.Contains(theme)) _settings.Theme = theme;
                         if (s.TryGetProperty("showClock", out var sc) && (sc.ValueKind == JsonValueKind.True || sc.ValueKind == JsonValueKind.False)) _settings.ShowClock = sc.GetBoolean();
                         _settings.Save();
                         RefreshTrayChecks();
@@ -141,8 +144,11 @@ namespace Nightverse
                     if (msg.TryGetProperty("color", out var c) && TryParseHex(c.GetString(), out var col))
                     {
                         _accent = col;
-                        _glow?.SetColor(col);
+                        _glow?.SetAlbumColor(col);
                     }
+                    break;
+                case "lighting":
+                    if (msg.TryGetProperty("lighting", out var lt)) ApplyLightingMessage(lt);
                     break;
             }
         }
@@ -159,12 +165,14 @@ namespace Nightverse
                 case "toggleMini": ToggleMini(); break;
                 case "fullscreen": _main.ToggleFullscreen(); break;
                 case "exitFullscreen": _main.ExitFullscreen(); break;
+                case "minimize": _main.WindowState = WindowState.Minimized; break;
             }
         }
 
         private void ToggleMini()
         {
             _main.ToggleMini();
+            // the mini player always shows the vinyl view, but that must never overwrite the user's chosen style
             _main.Post(new { type = "settings", settings = new { mini = _main.IsMini, theme = _main.IsMini ? "vinyl" : _settings.Theme } });
             RefreshTrayChecks();
         }
@@ -180,8 +188,10 @@ namespace Nightverse
         private void EnsureGlow()
         {
             if (_glow != null) return;
-            _glow = new GlowWindow { Intensity = _settings.GlowIntensity };
-            _glow.SetColor(_accent);
+            _glow = new GlowWindow();
+            _glow.UseAudio(_audio);
+            _glow.Configure(_settings.Lighting);
+            _glow.SetAlbumColor(_accent);
             UpdateGlowVisibility(_media.IsPlaying);
         }
 
@@ -189,8 +199,40 @@ namespace Nightverse
         {
             _settings.GlowEnabled = on; _settings.Save();
             if (on) EnsureGlow();
-            else if (_glow != null) _glow.FadeTo(false);
+            else if (_glow != null) { _glow.FadeTo(false); _glowShown = false; }
             RefreshTrayChecks();
+            PostLighting();
+        }
+
+        private void ApplyLightingMessage(JsonElement lt)
+        {
+            var L = _settings.Lighting;
+            if (lt.TryGetProperty("mode", out var m) && m.GetString() is string mode && (mode == "custom" || mode == "album")) L.Mode = mode;
+            if (lt.TryGetProperty("style", out var sty) && sty.GetString() is string style && (style == "ambient" || style == "static" || style == "dynamic")) L.Style = style;
+            if (lt.TryGetProperty("colors", out var cs) && cs.ValueKind == JsonValueKind.Array)
+            {
+                var list = new System.Collections.Generic.List<string>();
+                foreach (var c in cs.EnumerateArray())
+                    if (TryParseHex(c.GetString(), out _) && list.Count < 12) list.Add(c.GetString()!);
+                if (list.Count > 0) L.Colors = list;
+            }
+            double D(string n, double cur) => lt.TryGetProperty(n, out var v) && v.ValueKind == JsonValueKind.Number ? Math.Clamp(v.GetDouble(), 0, 1) : cur;
+            L.React = D("react", L.React); L.Speed = D("speed", L.Speed); L.Reach = D("reach", L.Reach); L.Brightness = D("brightness", L.Brightness);
+            bool glowChanged = false;
+            if (lt.TryGetProperty("glow", out var g) && (g.ValueKind == JsonValueKind.True || g.ValueKind == JsonValueKind.False) && g.GetBoolean() != _settings.GlowEnabled)
+            {
+                _settings.GlowEnabled = g.GetBoolean(); glowChanged = true;
+            }
+            _settings.Save();
+            if (glowChanged) { if (_settings.GlowEnabled) EnsureGlow(); else if (_glow != null) { _glow.FadeTo(false); _glowShown = false; } RefreshTrayChecks(); }
+            _glow?.Configure(L);
+            if (_settings.GlowEnabled) UpdateGlowVisibility(_media.IsPlaying);
+        }
+
+        private void PostLighting()
+        {
+            var L = _settings.Lighting;
+            _main.Post(new { type = "lighting", lighting = new { mode = L.Mode, style = L.Style, colors = L.Colors, react = L.React, speed = L.Speed, reach = L.Reach, brightness = L.Brightness, glow = _settings.GlowEnabled } });
         }
 
         private bool _glowShown;
@@ -239,10 +281,11 @@ namespace Nightverse
             menu.Items.Add(_clockItem);
             _glowItem = new Forms.ToolStripMenuItem("Screen glow", null, (_, _) => SetGlow(!_settings.GlowEnabled));
             menu.Items.Add(_glowItem);
-            var intensity = new Forms.ToolStripMenuItem("Glow strength");
-            foreach (var (label, val) in new[] { ("Soft", 0.35), ("Medium", 0.65), ("Strong", 1.0) })
-                intensity.DropDownItems.Add(label, null, (_, _) => { _settings.GlowIntensity = val; _settings.Save(); if (_glow != null) { _glow.Intensity = val; _glow.SetColor(_accent); } });
-            menu.Items.Add(intensity);
+            menu.Items.Add("Lighting colours && beat…", null, (_, _) =>
+            {
+                _main.BringToFront();
+                _main.Post(new { type = "ui", open = "lights" });
+            });
             _miniItem = new Forms.ToolStripMenuItem("Mini vinyl player", null, (_, _) => { _main.BringToFront(); ToggleMini(); });
             menu.Items.Add(_miniItem);
             _topItem = new Forms.ToolStripMenuItem("Always on top", null, (_, _) =>
@@ -316,6 +359,7 @@ namespace Nightverse
         {
             _timer?.Stop();
             _media.Dispose();
+            _audio.Dispose();
             if (_tray != null) { _tray.Visible = false; _tray.Dispose(); }
             _main.AllowClose = true;
             _main.Close();

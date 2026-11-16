@@ -24,16 +24,18 @@
   </div>
 
   <nav id="dock" aria-label="Controls">
-    <button data-cmd="previous" title="Previous (←)">⏮</button>
-    <button data-cmd="playPause" title="Play / pause (Space)">⏯</button>
-    <button data-cmd="next" title="Next (→)">⏭</button>
+    <button data-cmd="previous" class="mini-keep" title="Previous (←)">⏮</button>
+    <button data-cmd="playPause" class="mini-keep" title="Play / pause (Space)">⏯</button>
+    <button data-cmd="next" class="mini-keep" title="Next (→)">⏭</button>
     <span class="sep"></span>
     <button data-cmd="styles" title="Lyric styles (S)">Styles ▾</button>
+    <button data-cmd="lights" class="host-only" title="Lighting colours and beat (L)">Lights</button>
     <span class="sep"></span>
     <button data-cmd="clock" title="Clock (C)">Clock</button>
     <button data-cmd="toggleGlow" class="host-only" title="Screen glow (G)">Glow</button>
-    <button data-cmd="toggleMini" class="host-only" title="Mini player (M)">Mini</button>
+    <button data-cmd="toggleMini" class="host-only mini-keep" title="Mini player / back to full window (M)">Mini</button>
     <button data-cmd="fullscreen" title="Full screen (F)">⛶</button>
+    <button data-cmd="minimize" class="host-only mini-keep" title="Minimize to the taskbar">—</button>
     <button data-cmd="help" title="Shortcuts (H)">?</button>
     <button data-cmd="close" class="frame-only" title="Close (Esc)">✕</button>
   </nav>
@@ -56,6 +58,28 @@
 
   <div id="picker" role="dialog" aria-label="Lyric styles"><h2>Lyric style</h2><div class="grid"></div></div>
 
+  <div id="lights" role="dialog" aria-label="Ambient lighting">
+    <div class="lt-head"><h2>Ambient lighting</h2><button id="lt-close" title="Close">✕</button></div>
+    <label class="lt-row"><span>Screen lighting</span><input id="lt-glow" type="checkbox" checked></label>
+    <div class="lt-sub">Style</div>
+    <div class="lt-seg" id="lt-style">
+      <button type="button" data-style="ambient" title="Soft light that flows around the screen and swells with the music">Ambient</button>
+      <button type="button" data-style="static" title="Fixed colours that stay put, no movement">Static</button>
+      <button type="button" data-style="dynamic" title="Hits hard on every beat and jumps colour">Dynamic</button>
+    </div>
+    <p class="lt-desc" id="lt-desc"></p>
+    <div class="lt-sub">Palettes</div>
+    <div class="lt-presets" id="lt-presets"></div>
+    <div class="lt-sub">Colours (add as many as you like)</div>
+    <div class="lt-swatches" id="lt-sw"></div>
+    <label class="lt-row"><span>Use album colour</span><input id="lt-album" type="checkbox"></label>
+    <label class="lt-range"><span>Beat reaction</span><input id="lt-react" type="range" min="0" max="100"><output></output></label>
+    <label class="lt-range"><span>Flow speed</span><input id="lt-speed" type="range" min="0" max="100"><output></output></label>
+    <label class="lt-range"><span>Reach</span><input id="lt-reach" type="range" min="5" max="100"><output></output></label>
+    <label class="lt-range"><span>Brightness</span><input id="lt-bright" type="range" min="5" max="100"><output></output></label>
+    <p class="lt-note">The light follows the bass and beat of whatever your PC is playing.</p>
+  </div>
+
   <div id="toast" role="status"></div>
 
   <script src="lrc.js"></script>
@@ -68,5 +92,6 @@
   <script src="themes/pack.js"></script>
   <script src="demo.js"></script>
   <script src="engine.js"></script>
+  <script src="lights.js"></script>
 </body>
 </html>

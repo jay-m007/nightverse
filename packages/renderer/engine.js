@@ -127,6 +127,12 @@
         Object.assign(state.settings, msg.settings || {});
         applySettings();
         break;
+      case 'lighting':
+        if (window.NVLights) window.NVLights.set(msg.lighting || {});
+        break;
+      case 'ui':
+        if (msg.open === 'lights') document.body.classList.add('show-lights');
+        break;
       case 'idle':
         state.track = null; state.lines = []; state.status = 'idle';
         document.body.classList.add('no-track');
@@ -195,6 +201,7 @@
     else if (k === 'escape') send({ type: 'command', name: 'exitFullscreen' });
     else if (k === 'h' || k === '?') document.body.classList.toggle('show-help');
     else if (k === 's') document.body.classList.toggle('show-picker');
+    else if (k === 'l' && state.host === 'webview2') document.body.classList.toggle('show-lights');
   });
 
   // Theme dock (hover at the bottom)
@@ -204,6 +211,7 @@
     if (c === 'clock') { state.settings.showClock = !state.settings.showClock; applySettings(); saveSettings(); }
     else if (c === 'help') document.body.classList.toggle('show-help');
     else if (c === 'styles') document.body.classList.toggle('show-picker');
+    else if (c === 'lights') document.body.classList.toggle('show-lights');
     else send({ type: 'command', name: c });
   }));
   let idleTimer;
@@ -228,5 +236,5 @@
   if (params.has('demo') || state.host === 'standalone') window.NVDemo && window.NVDemo.start(handle, params);
   if (params.has('theme')) useTheme(params.get('theme'));
   if (params.has('seek')) setTimeout(() => setPosition(+params.get('seek'), !params.has('paused')), 50);
-  window.NV = { handle, useTheme, state, setPosition };
+  window.NV = { handle, useTheme, state, setPosition, send };
 })();

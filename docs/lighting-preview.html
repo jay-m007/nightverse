@@ -33,6 +33,11 @@
   .presets { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
   .presets button, .tog { border: 1px solid rgb(255 255 255 / .14); background: rgb(255 255 255 / .06); color: var(--ink); border-radius: 9px; padding: 6px 10px; font-size: 12px; cursor: pointer; }
   .presets button:hover, .tog:hover { background: rgb(255 255 255 / .14); }
+  .seg { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; padding: 3px; border-radius: 11px; background: rgb(255 255 255 / .06); margin-bottom: 8px; }
+  .seg button { border: 0; background: transparent; color: var(--dim); border-radius: 8px; padding: 7px 0; font-weight: 700; font-size: 12.5px; cursor: pointer; }
+  .seg button.on { background: #ff8a3d; color: #111; }
+  .presets button { position: relative; padding-top: 17px; min-width: 60px; overflow: hidden; }
+  .presets button::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 10px; background: var(--sw); }
   .note { margin-top: 10px; color: var(--dim); font-size: 11.5px; line-height: 1.45; }
   #hide { position: fixed; right: 16px; bottom: 16px; z-index: 6; }
   body.nopanel #panel { display: none; }
@@ -53,6 +58,10 @@
 
 <div id="panel">
   <h2>Ambient lighting</h2>
+  <div class="seg" id="styleSeg">
+    <button data-style="ambient">Ambient</button><button data-style="static">Static</button><button data-style="dynamic">Dynamic</button>
+  </div>
+  <div class="note" id="styleDesc" style="margin:0 0 10px"></div>
   <div class="presets" id="presets"></div>
   <div style="color:var(--dim);margin-bottom:4px">Colours (as many as you like)</div>
   <div class="swatches" id="sw"></div>
@@ -85,9 +94,20 @@
     'Sunset': ['#ff7a2f', '#ff3d6e', '#ffc65a'],
     'Aurora': ['#3dffb0', '#38b6ff', '#9a6bff'],
     'Ice': ['#9be8ff', '#5aa8ff', '#e9f7ff'],
+    'Lava': ['#ff3b1f', '#ff8a00', '#ffd23f'],
+    'Ocean': ['#0077ff', '#00d4ff', '#00ffc8'],
+    'Forest': ['#0fbf5a', '#9bff4d', '#1b8f6a'],
+    'Candy': ['#ff5fa2', '#ffd1e8', '#7be0ff'],
+    'Cyber': ['#fcee0a', '#00f0ff', '#ff003c'],
+    'Vapor': ['#ff71ce', '#01cdfe', '#b967ff', '#05ffa1'],
+    'Gold': ['#ffb800', '#ff6a00', '#fff1b8'],
+    'Rose': ['#ff4d6d', '#ff8fa3', '#c9184a'],
+    'Midnight': ['#4361ee', '#7209b7', '#3a0ca3'],
+    'Red & Blue': ['#e8112d', '#1d4ed8', '#ffffff'],
+    'Pure white': ['#ffffff', '#ffe9c4'],
   };
   let colors = PRESETS['RGB'].slice();
-  const S = { react: .7, speed: .35, reach: .45, bright: .8, bpm: 116, beat: true };
+  const S = { style: 'ambient', react: .7, speed: .35, reach: .45, bright: .8, bpm: 116, beat: true };
 
   // ---- UI ----
   const sw = document.getElementById('sw');
@@ -114,6 +134,7 @@
   const pre = document.getElementById('presets');
   Object.keys(PRESETS).forEach((k) => {
     const b = document.createElement('button'); b.textContent = k;
+    b.style.setProperty('--sw', 'linear-gradient(90deg,' + PRESETS[k].join(',') + ')');
     b.addEventListener('click', () => { colors = PRESETS[k].slice(); drawSwatches(); });
     pre.appendChild(b);
   });
@@ -124,6 +145,10 @@
   }
   bind('react', 'react'); bind('speed', 'speed'); bind('reach', 'reach'); bind('bright', 'bright');
   bind('bpm', 'bpm', 1, (v) => Math.round(v));
+  const DESC = { ambient: 'Soft light that flows around the edges and swells with the music.', static: 'Your colours held in place around the screen. No movement, no beat.', dynamic: 'Hits hard on every beat and jumps to a new shade each time.' };
+  function setStyle(v) { S.style = v; document.querySelectorAll('#styleSeg button').forEach((b) => b.classList.toggle('on', b.dataset.style === v)); document.getElementById('styleDesc').textContent = DESC[v]; }
+  document.querySelectorAll('#styleSeg button').forEach((b) => b.addEventListener('click', () => setStyle(b.dataset.style)));
+  setStyle('ambient');
   const beatTog = document.getElementById('beatTog');
   beatTog.onclick = () => { S.beat = !S.beat; beatTog.textContent = 'Beat: ' + (S.beat ? 'on' : 'off'); };
   document.getElementById('hide').onclick = (e) => { document.body.classList.toggle('nopanel'); e.target.textContent = document.body.classList.contains('nopanel') ? 'Show panel' : 'Hide panel'; };
@@ -156,40 +181,41 @@
     return { x: 0, y: H - (d - 2 * W - H), nx: 1, ny: 0 };
   }
 
-  let level = 0, bass = 0, hit = 0, lastBeat = -1, kick = 0;
+  let level = 0, bass = 0, hit = 0, lastBeat = -1, kick = 0, hueStep = 0;
   let t0 = performance.now(), prev = t0, flow = 0, hue = 0;
   function simBeat(t) {
     const beatsPerSec = S.bpm / 60;
     const x = t * beatsPerSec, idx = Math.floor(x), frac = x - idx;
-    if (idx !== lastBeat) { lastBeat = idx; if (S.beat) { kick = (idx % 4 === 0) ? 1 : .72; hit = 1; } }
+    if (idx !== lastBeat) { lastBeat = idx; if (S.beat && S.style !== 'static') { kick = (idx % 4 === 0) ? 1 : .72; hit = 1; if (S.style === 'dynamic') hueStep += .5; } }
     return Math.exp(-frac * 5.5) * kick;
   }
 
   function frame(now) {
     const dt = Math.min(.05, (now - prev) / 1000); prev = now;
     const t = (now - t0) / 1000;
-    const env = S.beat ? simBeat(t) : 0;
+    const isStatic = S.style === 'static', isDyn = S.style === 'dynamic';
+    const env = (S.beat && !isStatic) ? simBeat(t) : 0;
     bass += (env - bass) * Math.min(1, dt * 26);              // fast attack
-    if (env < bass) bass += (env - bass) * Math.min(1, dt * 6);  // slower release
-    flow += dt * (.012 + S.speed * .09);
-    hue += dt * (.05 + S.speed * .55);
+    if (env < bass) bass += (env - bass) * Math.min(1, dt * (isDyn ? 11 : 6));  // release
+    if (!isStatic) { flow += dt * (.012 + S.speed * (isDyn ? .16 : .09)); hue += dt * (.05 + S.speed * .55); }
+    const hueNow = isStatic ? 0 : hue + hueStep;
 
     ctx.clearRect(0, 0, W, H);
     ctx.globalCompositeOperation = 'lighter';
     const base = Math.min(W, H);
     const reach = (.16 + S.reach * .42) * base;
-    const react = S.react;
+    const react = isStatic ? 0 : isDyn ? Math.min(1, S.react * 1.35 + .25) : S.react;
 
     blobs.forEach((b, i) => {
-      const u = b.u + flow * b.drift + Math.sin(t * .35 + b.wob) * .018;
+      const u = b.u + flow * b.drift + (isStatic ? 0 : Math.sin(t * .35 + b.wob) * .018);
       const p = perimeter(u);
-      const breathe = 1 + .16 * Math.sin(t * .6 + b.wob * 1.3);
-      const pump = 1 + react * .75 * bass;
+      const breathe = isStatic ? 1 : 1 + .16 * Math.sin(t * .6 + b.wob * 1.3);
+      const pump = 1 + react * (isDyn ? 1 : .75) * bass;
       const r = reach * b.size * breathe * pump;
       const inset = -r * .18 + r * .1 * react * bass;    // centre just outside the edge, pushes in on beats
       const cx = p.x + p.nx * (-inset), cy = p.y + p.ny * (-inset);
-      const [R, G, B] = palette(b.ph + hue + i * .3);
-      const a = Math.min(1, (.22 + .5 * S.bright) * (.62 + react * .9 * bass));
+      const [R, G, B] = palette(b.ph + hueNow + i * .3);
+      const a = isStatic ? Math.min(1, .2 + .55 * S.bright) : isDyn ? Math.min(1, (.16 + .38 * S.bright) * (.45 + react * 1.5 * bass)) : Math.min(1, (.22 + .5 * S.bright) * (.62 + react * .9 * bass));
       const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
       g.addColorStop(0, `rgba(${R | 0},${G | 0},${B | 0},${a})`);
       g.addColorStop(.38, `rgba(${R | 0},${G | 0},${B | 0},${a * .5})`);
@@ -201,8 +227,8 @@
 
     // thin bright rim on beats so the screen frame "flashes"
     if (react > 0 && bass > .05) {
-      const rim = Math.min(1, bass * react) * .5 * S.bright;
-      const [R, G, B] = palette(hue);
+      const rim = Math.min(1, bass * react) * (isDyn ? .8 : .5) * S.bright;
+      const [R, G, B] = palette(hueNow);
       const th = 3 + 22 * bass;
       ctx.globalCompositeOperation = 'lighter';
       const edge = (x, y, w, h, ox, oy, ix, iy) => {
@@ -219,7 +245,7 @@
     requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);
-  window.__nv = { S, setColors: (c) => { colors = c.slice(); drawSwatches(); } };
+  window.__nv = { S, setStyle, setColors: (c) => { colors = c.slice(); drawSwatches(); } };
 })();
 </script>
 </body>

@@ -127,7 +127,7 @@ namespace Nightverse
                 Width = 340; Height = 470;
                 var wa = SystemParameters.WorkArea;
                 Left = wa.Right - Width - 24; Top = wa.Bottom - Height - 24;
-                Topmost = true;
+                Topmost = AlwaysOnTop;   // the mini player no longer forces itself above every app
                 _mini = true;
             }
             else
